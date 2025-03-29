@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -15,6 +16,7 @@ const ResultsPage: React.FC = () => {
     setCurrentStep 
   } = useQuiz();
   const { toast } = useToast();
+  const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
 
   const correctAnswers = questions.filter(q => answers[q.id] === q.correctAnswer).length;
   const totalQuestions = questions.length;
@@ -28,12 +30,12 @@ const ResultsPage: React.FC = () => {
 
   // Function to get feedback based on score
   const getFeedback = () => {
-    if (score >= 90) return 'Excellent! You have a great understanding of the material.';
-    if (score >= 80) return 'Great job! You know the material well.';
-    if (score >= 70) return 'Good work! You have a solid grasp of most concepts.';
+    if (score >= 90) return "Excellent! You have a great understanding of the material.";
+    if (score >= 80) return "Great job! You know the material well.";
+    if (score >= 70) return "Good work! You have a solid grasp of most concepts.";
     if (score >= 60) return "Not bad. You're on the right track.";
     if (score >= 50) return "You passed, but there's room for improvement.";
-    return 'You might need to review the material again.';
+    return "You might need to review the material again.";
   };
 
   // Download the results as a text file
@@ -58,6 +60,15 @@ const ResultsPage: React.FC = () => {
   // Start a new quiz with the same user
   const startNewQuiz = () => {
     setCurrentStep(1); // Go back to file upload page
+  };
+
+  // Toggle question details visibility
+  const toggleQuestionDetails = (questionId: number) => {
+    if (expandedQuestions.includes(questionId)) {
+      setExpandedQuestions(expandedQuestions.filter(id => id !== questionId));
+    } else {
+      setExpandedQuestions([...expandedQuestions, questionId]);
+    }
   };
 
   return (
@@ -106,15 +117,49 @@ const ResultsPage: React.FC = () => {
           
           <div className="bg-secondary p-4 rounded-lg space-y-3">
             <h3 className="font-medium">Question Breakdown</h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {questions.map((question, index) => {
                 const isCorrect = answers[question.id] === question.correctAnswer;
+                const isExpanded = expandedQuestions.includes(question.id);
                 return (
-                  <div key={index} className="flex items-center space-x-2 text-sm">
-                    <span className={`flex-none w-6 h-6 rounded-full flex items-center justify-center ${isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      {isCorrect ? '✓' : '✗'}
-                    </span>
-                    <span className="truncate">Question {index + 1}</span>
+                  <div key={index} className="border border-muted rounded-lg overflow-hidden">
+                    <div 
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50"
+                      onClick={() => toggleQuestionDetails(question.id)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className={`flex-none w-6 h-6 rounded-full flex items-center justify-center ${isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                          {isCorrect ? '✓' : '✗'}
+                        </span>
+                        <span className="font-medium">Question {index + 1}</span>
+                      </div>
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className="p-3 border-t border-muted bg-background/50 text-sm">
+                        <p className="font-medium mb-2">{question.question}</p>
+                        <div className="space-y-1">
+                          {question.options.map((option, optIndex) => (
+                            <div 
+                              key={optIndex} 
+                              className={`p-2 rounded ${
+                                option === question.correctAnswer 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : option === answers[question.id] && option !== question.correctAnswer
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-muted/30'
+                              }`}
+                            >
+                              {option}
+                              {option === question.correctAnswer && option !== answers[question.id] && 
+                                <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
+                              }
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

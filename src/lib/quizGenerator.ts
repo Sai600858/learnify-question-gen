@@ -7,6 +7,7 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
   const cleanedText = text
     .replace(/(\r\n|\n|\r)/gm, " ") // Replace line breaks with spaces
     .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+    .replace(/[^\w\s.,;:?!'"()[\]{}-]/g, "") // Remove special characters except punctuation
     .trim();
   
   // Split text into meaningful paragraphs
@@ -20,7 +21,7 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
       !/^\d+\./.test(p) // Exclude numbered lists
     );
   
-  // Extract key sentences that contain important information
+  // Extract key sentences with important information
   const informativeSentences = paragraphs.flatMap(paragraph => {
     // Split paragraph into sentences
     return paragraph
@@ -36,7 +37,7 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
           sentence.includes(" defined as ") ||
           sentence.includes(" consists of ") ||
           sentence.includes(" known as ") ||
-          /\b(important|key|significant|main|primary|critical)\b/i.test(sentence)
+          /\b(important|key|significant|main|primary|critical|essential|fundamental|crucial|major)\b/i.test(sentence)
         )
       );
   });
