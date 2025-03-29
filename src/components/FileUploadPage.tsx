@@ -1,10 +1,11 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuiz } from '@/context/QuizContext';
 import { readFileContent } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
+import { Input } from "@/components/ui/input";
 
 const FileUploadPage: React.FC = () => {
   const { name, setFile, setFileContent, setCurrentStep } = useQuiz();
@@ -13,6 +14,21 @@ const FileUploadPage: React.FC = () => {
   const [fileError, setFileError] = useState('');
   const [selectedFileName, setSelectedFileName] = useState('');
   const { toast } = useToast();
+  const [isAndroidWebView, setIsAndroidWebView] = useState(false);
+
+  // Detect if running in Android WebView
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroid = userAgent.indexOf("android") > -1;
+    const isWebView = userAgent.indexOf("wv") > -1 || 
+                      userAgent.indexOf("webview") > -1;
+    
+    setIsAndroidWebView(isAndroid && isWebView);
+    
+    // Log platform detection info for debugging
+    console.log("User Agent:", userAgent);
+    console.log("Is Android WebView:", isAndroid && isWebView);
+  }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -26,7 +42,12 @@ const FileUploadPage: React.FC = () => {
 
   const validateFile = (file: File): boolean => {
     const validTypes = ['text/plain', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
+    
+    // Some WebViews may not properly detect file types, so let's also check extensions
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = fileName.endsWith('.pdf') || fileName.endsWith('.txt');
+    
+    if (!validTypes.includes(file.type) && !hasValidExtension) {
       setFileError('Please upload a PDF or text file');
       return false;
     }
@@ -102,51 +123,73 @@ const FileUploadPage: React.FC = () => {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <div
-            className={`file-upload-area flex flex-col items-center justify-center cursor-pointer ${
-              dragActive ? 'active' : ''
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => document.getElementById('file-input')?.click()}
-          >
-            <input
-              id="file-input"
-              type="file"
-              accept=".txt,.pdf"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            
-            {selectedFileName ? (
-              <div className="text-center">
-                <p className="font-medium text-primary">{selectedFileName}</p>
-                <p className="text-sm text-muted-foreground mt-2">Click or drag to replace</p>
-              </div>
-            ) : (
-              <>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-12 w-12 text-muted-foreground mb-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V6a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                <p className="font-medium">Click to upload</p>
-                <p className="text-sm text-muted-foreground mt-1">or drag and drop</p>
-                <p className="text-xs text-muted-foreground mt-1">PDF or Text files (max 10MB)</p>
-              </>
-            )}
-          </div>
+          {isAndroidWebView ? (
+            // Simplified interface for Android WebView
+            <div className="flex flex-col space-y-4">
+              <p className="text-center text-muted-foreground">
+                Select a PDF or text file from your device
+              </p>
+              <Input
+                id="file-input-android"
+                type="file"
+                accept=".txt,.pdf"
+                onChange={handleFileChange}
+                className="block w-full"
+              />
+              {selectedFileName && (
+                <div className="p-4 bg-primary/10 rounded-md text-center">
+                  <p className="font-medium text-primary">{selectedFileName}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Standard interface for desktop and other mobile browsers
+            <div
+              className={`file-upload-area flex flex-col items-center justify-center cursor-pointer ${
+                dragActive ? 'active' : ''
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('file-input')?.click()}
+            >
+              <input
+                id="file-input"
+                type="file"
+                accept=".txt,.pdf"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              
+              {selectedFileName ? (
+                <div className="text-center">
+                  <p className="font-medium text-primary">{selectedFileName}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Click or drag to replace</p>
+                </div>
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-12 w-12 text-muted-foreground mb-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V6a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <p className="font-medium">Click to upload</p>
+                  <p className="text-sm text-muted-foreground mt-1">or drag and drop</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF or Text files (max 10MB)</p>
+                </>
+              )}
+            </div>
+          )}
           
           {fileError && <p className="text-sm text-destructive text-center">{fileError}</p>}
         </CardContent>
