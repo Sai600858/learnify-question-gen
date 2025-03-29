@@ -1,85 +1,165 @@
 
 import { Question } from '../context/QuizContext';
 
-// Simple text processing to extract potential questions
-// In a real app, this would use a proper NLP/AI model
+// Enhanced question generation with NLP techniques
 export const generateQuestions = async (text: string, count: number): Promise<Question[]> => {
-  // This is a placeholder function that simulates AI-based question generation
-  // In a real implementation, you would use a proper NLP model or API
+  // Clean and prepare the text
+  const cleanedText = text
+    .replace(/(\r\n|\n|\r)/gm, " ") // Replace line breaks with spaces
+    .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+    .trim();
   
-  const sentences = text
-    .replace(/([.?!])\s*(?=[A-Z])/g, "$1|")
-    .split("|")
-    .filter(sentence => sentence.length > 30 && sentence.length < 200)
-    .filter(sentence => !sentence.includes("Figure") && !sentence.includes("Table"));
+  // Split text into meaningful paragraphs
+  const paragraphs = cleanedText
+    .split(/(?<=\. )(?=[A-Z])/)
+    .filter(p => p.length > 50 && p.length < 500) // Filter out very short or very long paragraphs
+    .filter(p => 
+      !p.includes("Figure") && 
+      !p.includes("Table") && 
+      !p.includes("Reference") &&
+      !/^\d+\./.test(p) // Exclude numbered lists
+    );
+  
+  // Extract key sentences that contain important information
+  const informativeSentences = paragraphs.flatMap(paragraph => {
+    // Split paragraph into sentences
+    return paragraph
+      .split(/(?<=\. )(?=[A-Z])/)
+      .filter(sentence => 
+        sentence.length > 30 && 
+        sentence.length < 200 &&
+        // Prioritize sentences with informative patterns
+        (
+          sentence.includes(" is ") || 
+          sentence.includes(" are ") || 
+          sentence.includes(" means ") ||
+          sentence.includes(" defined as ") ||
+          sentence.includes(" consists of ") ||
+          sentence.includes(" known as ") ||
+          /\b(important|key|significant|main|primary|critical)\b/i.test(sentence)
+        )
+      );
+  });
+
+  // If we don't have enough informative sentences, fall back to regular sentences
+  const sentences = informativeSentences.length >= count * 2 
+    ? informativeSentences 
+    : paragraphs.flatMap(p => p.split(/(?<=\. )(?=[A-Z])/))
+        .filter(s => s.length > 30 && s.length < 200);
+  
+  // Shuffle sentences to get variety
+  const shuffledSentences = [...sentences].sort(() => Math.random() - 0.5);
   
   const questions: Question[] = [];
-  const usedSentences: Set<number> = new Set();
+  const usedSentences: Set<string> = new Set();
   
-  // Generate a set number of questions or as many as possible from the text
-  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 3)); i++) {
-    // Choose a random sentence that hasn't been used yet
-    let randomIndex;
-    do {
-      randomIndex = Math.floor(Math.random() * sentences.length);
-    } while (usedSentences.has(randomIndex) || randomIndex + 2 >= sentences.length);
+  // Generate multiple question types
+  for (let i = 0; i < Math.min(count, Math.floor(shuffledSentences.length / 2)); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of shuffledSentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
+      }
+    }
     
-    usedSentences.add(randomIndex);
+    if (!selectedSentence) continue;
     
-    const selectedSentence = sentences[randomIndex];
+    // Extract meaningful words (nouns, verbs, adjectives) as potential keywords
+    const words = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 4) // Focus on longer words which tend to be more meaningful
+      .filter(w => !/^(these|those|there|their|about|would|should|could|which|where|when|what|this|that)$/i.test(w)); // Filter common words
     
-    // Create a simple question from the sentence
-    const words = selectedSentence.split(' ').filter(word => word.length > 4);
     if (words.length < 3) continue;
 
-    const keywordIndex = Math.floor(Math.random() * words.length);
-    const keyword = words[keywordIndex].replace(/[^a-zA-Z0-9]/g, '');
+    // Choose words that are likely to be domain-specific terms
+    const potentialKeywords = words.filter(word => 
+      // Words with capital letters are often proper nouns or important terms
+      (word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 5) || 
+      // Longer words are often domain-specific
+      word.length > 7
+    );
     
-    if (keyword.length < 4) continue;
+    // If we can't find specialized terms, fall back to any sufficiently long words
+    const keywordCandidates = potentialKeywords.length > 0 ? potentialKeywords : words.filter(w => w.length > 5);
     
-    const question = selectedSentence.replace(new RegExp(`\\b${keyword}\\b`, 'i'), '_____');
+    if (keywordCandidates.length === 0) continue;
     
-    // Generate options (including the correct answer)
+    // Select a keyword
+    const keywordIndex = Math.floor(Math.random() * keywordCandidates.length);
+    const keyword = keywordCandidates[keywordIndex];
+    
+    // Create a fill-in-the-blank question
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    const question = selectedSentence.replace(regex, '_____');
+    
+    // If we couldn't create a question, skip
+    if (question === selectedSentence) continue;
+    
+    // Generate options
     const correctAnswer = keyword;
-    const otherSentences = sentences.filter((_, idx) => idx !== randomIndex);
-    const otherOptions: string[] = [];
     
-    // Get 3 random words from other sentences to use as distractors
-    for (let j = 0; j < 3; j++) {
-      if (otherSentences.length === 0) break;
+    // Find other sentences to extract distractor options from
+    const otherSentences = sentences.filter(s => s !== selectedSentence)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5);
+    
+    // Extract potential distractor words from other sentences
+    const distractorWords = otherSentences.flatMap(s => 
+      s.split(' ')
+        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+        .filter(w => 
+          w.length > 4 && 
+          w !== correctAnswer && 
+          w.toLowerCase() !== correctAnswer.toLowerCase() &&
+          // Try to match the part of speech (rough heuristic)
+          (
+            (correctAnswer.endsWith('ing') && w.endsWith('ing')) ||
+            (correctAnswer.endsWith('ed') && w.endsWith('ed')) ||
+            (correctAnswer.endsWith('s') && w.endsWith('s')) ||
+            (correctAnswer.endsWith('ly') && w.endsWith('ly')) ||
+            (correctAnswer.charAt(0) === correctAnswer.charAt(0).toUpperCase() && 
+             w.charAt(0) === w.charAt(0).toUpperCase()) ||
+            true // Fall back to any word if we can't match part of speech
+          )
+        )
+    );
+    
+    // Get unique distractors
+    const uniqueDistractors = [...new Set(distractorWords)];
+    const shuffledDistractors = uniqueDistractors.sort(() => Math.random() - 0.5).slice(0, 3);
+    
+    // If we don't have enough distractors, generate some plausible ones
+    while (shuffledDistractors.length < 3) {
+      // Get words that are similar in length to the correct answer
+      const similarLengthWords = words.filter(w => 
+        Math.abs(w.length - correctAnswer.length) <= 2 && 
+        w !== correctAnswer &&
+        !shuffledDistractors.includes(w)
+      );
       
-      const randomSentenceIndex = Math.floor(Math.random() * otherSentences.length);
-      const randomSentence = otherSentences[randomSentenceIndex];
-      otherSentences.splice(randomSentenceIndex, 1);
-      
-      const sentenceWords = randomSentence.split(' ')
-        .filter(word => word.length > 3)
-        .map(word => word.replace(/[^a-zA-Z0-9]/g, ''));
-      
-      if (sentenceWords.length === 0) {
-        j--;
-        continue;
-      }
-      
-      const randomWord = sentenceWords[Math.floor(Math.random() * sentenceWords.length)];
-      if (randomWord && randomWord !== correctAnswer && !otherOptions.includes(randomWord)) {
-        otherOptions.push(randomWord);
+      if (similarLengthWords.length > 0) {
+        const randomWord = similarLengthWords[Math.floor(Math.random() * similarLengthWords.length)];
+        if (!shuffledDistractors.includes(randomWord)) {
+          shuffledDistractors.push(randomWord);
+        }
       } else {
-        j--;
+        // Fall back to generic options if necessary
+        const fallbackOptions = ['concept', 'process', 'factor', 'element', 'system', 'method', 'theory'];
+        for (const option of fallbackOptions) {
+          if (shuffledDistractors.length >= 3) break;
+          if (!shuffledDistractors.includes(option) && option !== correctAnswer) {
+            shuffledDistractors.push(option);
+          }
+        }
       }
     }
     
-    // Fill remaining options if needed
-    while (otherOptions.length < 3) {
-      const fillerOptions = ['term', 'concept', 'process', 'factor'];
-      const option = fillerOptions[otherOptions.length];
-      if (!otherOptions.includes(option) && option !== correctAnswer) {
-        otherOptions.push(option);
-      }
-    }
-    
-    // Combine all options and shuffle them
-    const allOptions = [correctAnswer, ...otherOptions];
+    // Combine and shuffle options
+    const allOptions = [correctAnswer, ...shuffledDistractors];
     for (let j = allOptions.length - 1; j > 0; j--) {
       const k = Math.floor(Math.random() * (j + 1));
       [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
@@ -93,18 +173,51 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
     });
   }
 
-  // If we couldn't generate enough questions, add some generic ones
-  while (questions.length < count) {
-    const id = questions.length + 1;
-    questions.push({
-      id,
-      question: `What is a key concept from paragraph ${id} of the document?`,
-      options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-      correctAnswer: "Concept A"
+  // If we couldn't generate enough questions, add some more general ones
+  if (questions.length < count) {
+    // Extract the most frequent words as key concepts
+    const wordFrequency: Record<string, number> = {};
+    sentences.forEach(sentence => {
+      sentence.split(' ')
+        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+        .filter(w => w.length > 5)
+        .forEach(word => {
+          wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+        });
     });
+    
+    // Sort words by frequency
+    const sortedWords = Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(entry => entry[0]);
+    
+    // Generate concept questions
+    for (let i = questions.length; i < count; i++) {
+      const conceptIndex = i % sortedWords.length;
+      const concept = sortedWords[conceptIndex];
+      
+      // Create options - other frequent words make good distractors
+      const otherConcepts = sortedWords.filter(w => w !== concept).slice(0, 3);
+      
+      // All options
+      const allOptions = [concept, ...otherConcepts];
+      // Shuffle options
+      for (let j = allOptions.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+      }
+      
+      questions.push({
+        id: i + 1,
+        question: `Which of the following concepts appears frequently in the document?`,
+        options: allOptions,
+        correctAnswer: concept
+      });
+    }
   }
   
-  // Simulate a delay to represent processing time
+  // Simulate a processing delay
   await new Promise(resolve => setTimeout(resolve, 1500));
   
   return questions;
