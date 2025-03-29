@@ -1,8 +1,12 @@
 
-import { Question } from '../context/QuizContext';
+import { Question, QuestionType } from '../context/QuizContext';
 
-// Enhanced question generation with NLP techniques
-export const generateQuestions = async (text: string, count: number): Promise<Question[]> => {
+// Enhanced question generation with advanced NLP techniques
+export const generateQuestions = async (
+  text: string, 
+  count: number, 
+  type: QuestionType = 'mcq'
+): Promise<Question[]> => {
   // Clean and prepare the text
   const cleanedText = text
     .replace(/(\r\n|\n|\r)/gm, " ") // Replace line breaks with spaces
@@ -13,7 +17,7 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
   // Split text into meaningful paragraphs
   const paragraphs = cleanedText
     .split(/(?<=\. )(?=[A-Z])/)
-    .filter(p => p.length > 50 && p.length < 500) // Filter out very short or very long paragraphs
+    .filter(p => p.length > 50 && p.length < 1000) // Filter out very short or very long paragraphs
     .filter(p => 
       !p.includes("Figure") && 
       !p.includes("Table") && 
@@ -21,23 +25,45 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
       !/^\d+\./.test(p) // Exclude numbered lists
     );
   
-  // Extract key sentences with important information
+  // Extract key sentences with important information using more advanced patterns
   const informativeSentences = paragraphs.flatMap(paragraph => {
     // Split paragraph into sentences
     return paragraph
       .split(/(?<=\. )(?=[A-Z])/)
       .filter(sentence => 
         sentence.length > 30 && 
-        sentence.length < 200 &&
-        // Prioritize sentences with informative patterns
+        sentence.length < 250 &&
+        // More comprehensive patterns for identifying informative sentences
         (
+          // Definitional patterns
           sentence.includes(" is ") || 
           sentence.includes(" are ") || 
           sentence.includes(" means ") ||
           sentence.includes(" defined as ") ||
           sentence.includes(" consists of ") ||
           sentence.includes(" known as ") ||
-          /\b(important|key|significant|main|primary|critical|essential|fundamental|crucial|major)\b/i.test(sentence)
+          
+          // Causal relationships
+          sentence.includes(" because ") ||
+          sentence.includes(" therefore ") ||
+          sentence.includes(" thus ") ||
+          sentence.includes(" consequently ") ||
+          sentence.includes(" as a result ") ||
+          
+          // Comparative relationships
+          sentence.includes(" compared to ") ||
+          sentence.includes(" in contrast ") ||
+          sentence.includes(" on the other hand ") ||
+          sentence.includes(" whereas ") ||
+          
+          // Important concept indicators
+          /\b(important|key|significant|main|primary|critical|essential|fundamental|crucial|major)\b/i.test(sentence) ||
+          
+          // Numerical information (often important)
+          /\b\d+(\.\d+)?\s*(percent|%)\b/i.test(sentence) ||
+          
+          // Lists (often contain key points)
+          /\b(first|second|third|finally|lastly)\b/i.test(sentence)
         )
       );
   });
@@ -46,7 +72,7 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
   const sentences = informativeSentences.length >= count * 2 
     ? informativeSentences 
     : paragraphs.flatMap(p => p.split(/(?<=\. )(?=[A-Z])/))
-        .filter(s => s.length > 30 && s.length < 200);
+        .filter(s => s.length > 30 && s.length < 250);
   
   // Shuffle sentences to get variety
   const shuffledSentences = [...sentences].sort(() => Math.random() - 0.5);
@@ -54,11 +80,94 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
   const questions: Question[] = [];
   const usedSentences: Set<string> = new Set();
   
-  // Generate multiple question types
-  for (let i = 0; i < Math.min(count, Math.floor(shuffledSentences.length / 2)); i++) {
+  // Generate questions based on the type
+  if (type === 'mcq') {
+    questions.push(...generateMCQs(shuffledSentences, usedSentences, count));
+  } else {
+    questions.push(...generateTrueFalse(shuffledSentences, usedSentences, count));
+  }
+  
+  // If we couldn't generate enough questions, add some more general ones
+  if (questions.length < count) {
+    // Extract the most frequent words as key concepts
+    const wordFrequency: Record<string, number> = {};
+    sentences.forEach(sentence => {
+      sentence.split(' ')
+        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+        .filter(w => w.length > 5)
+        .forEach(word => {
+          wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+        });
+    });
+    
+    // Sort words by frequency
+    const sortedWords = Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(entry => entry[0]);
+    
+    // Generate concept questions based on question type
+    for (let i = questions.length; i < count; i++) {
+      if (type === 'mcq') {
+        const conceptIndex = i % sortedWords.length;
+        const concept = sortedWords[conceptIndex];
+        
+        // Create options - other frequent words make good distractors
+        const otherConcepts = sortedWords.filter(w => w !== concept).slice(0, 3);
+        
+        // All options
+        const allOptions = [concept, ...otherConcepts];
+        // Shuffle options
+        for (let j = allOptions.length - 1; j > 0; j--) {
+          const k = Math.floor(Math.random() * (j + 1));
+          [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+        }
+        
+        questions.push({
+          id: i + 1,
+          question: `Which of the following concepts appears frequently in the document?`,
+          options: allOptions,
+          correctAnswer: concept,
+          type: 'mcq'
+        });
+      } else {
+        // Create true/false question
+        const conceptIndex = i % sortedWords.length;
+        const concept = sortedWords[conceptIndex];
+        const isTrue = Math.random() > 0.5;
+        
+        questions.push({
+          id: i + 1,
+          question: isTrue 
+            ? `The term "${concept}" is an important concept discussed in the document.`
+            : `The term "${sortedWords[(conceptIndex + 1) % sortedWords.length]}" is more important than "${concept}" in the document.`,
+          options: ["True", "False"],
+          correctAnswer: isTrue ? "True" : "False",
+          type: 'truefalse'
+        });
+      }
+    }
+  }
+  
+  // Simulate a processing delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  return questions;
+};
+
+// Function to generate Multiple Choice Questions
+const generateMCQs = (
+  sentences: string[], 
+  usedSentences: Set<string>, 
+  count: number
+): Question[] => {
+  const mcqs: Question[] = [];
+  
+  // Generate fill-in-the-blank MCQs
+  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 2)); i++) {
     // Pick a sentence that hasn't been used
     let selectedSentence = "";
-    for (const sentence of shuffledSentences) {
+    for (const sentence of sentences) {
       if (!usedSentences.has(sentence)) {
         selectedSentence = sentence;
         usedSentences.add(sentence);
@@ -166,62 +275,237 @@ export const generateQuestions = async (text: string, count: number): Promise<Qu
       [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
     }
     
-    questions.push({
+    mcqs.push({
       id: i + 1,
       question: question,
       options: allOptions,
-      correctAnswer: correctAnswer
+      correctAnswer: correctAnswer,
+      type: 'mcq'
     });
   }
+  
+  return mcqs;
+};
 
-  // If we couldn't generate enough questions, add some more general ones
-  if (questions.length < count) {
-    // Extract the most frequent words as key concepts
-    const wordFrequency: Record<string, number> = {};
-    sentences.forEach(sentence => {
-      sentence.split(' ')
-        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(w => w.length > 5)
-        .forEach(word => {
-          wordFrequency[word] = (wordFrequency[word] || 0) + 1;
-        });
-    });
-    
-    // Sort words by frequency
-    const sortedWords = Object.entries(wordFrequency)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(entry => entry[0]);
-    
-    // Generate concept questions
-    for (let i = questions.length; i < count; i++) {
-      const conceptIndex = i % sortedWords.length;
-      const concept = sortedWords[conceptIndex];
-      
-      // Create options - other frequent words make good distractors
-      const otherConcepts = sortedWords.filter(w => w !== concept).slice(0, 3);
-      
-      // All options
-      const allOptions = [concept, ...otherConcepts];
-      // Shuffle options
-      for (let j = allOptions.length - 1; j > 0; j--) {
-        const k = Math.floor(Math.random() * (j + 1));
-        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+// Function to generate True/False Questions
+const generateTrueFalse = (
+  sentences: string[], 
+  usedSentences: Set<string>, 
+  count: number
+): Question[] => {
+  const trueFalseQuestions: Question[] = [];
+  
+  for (let i = 0; i < Math.min(count, sentences.length); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of sentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
       }
-      
-      questions.push({
-        id: i + 1,
-        question: `Which of the following concepts appears frequently in the document?`,
-        options: allOptions,
-        correctAnswer: concept
-      });
     }
+    
+    if (!selectedSentence) continue;
+    
+    // Randomly decide if this will be a true or false statement
+    const isTrue = Math.random() > 0.4; // Slightly bias toward true statements
+    
+    let question: string;
+    
+    if (isTrue) {
+      // Use the original sentence as a true statement
+      question = selectedSentence;
+    } else {
+      // Modify the sentence to make it false
+      const words = selectedSentence.split(' ');
+      
+      // Strategies to make a false statement:
+      const strategy = Math.floor(Math.random() * 4);
+      
+      switch (strategy) {
+        case 0:
+          // Replace a key word with an opposite or unrelated term
+          const keywordIndex = Math.floor(Math.random() * words.length);
+          const originalWord = words[keywordIndex];
+          
+          // Skip short words or common words
+          if (originalWord.length <= 4 || /^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(originalWord)) {
+            // Try again with another word
+            for (let j = 0; j < words.length; j++) {
+              const idx = (keywordIndex + j) % words.length;
+              if (words[idx].length > 4 && !/^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(words[idx])) {
+                words[idx] = getOppositeOrUnrelated(words[idx]);
+                break;
+              }
+            }
+          } else {
+            words[keywordIndex] = getOppositeOrUnrelated(originalWord);
+          }
+          question = words.join(' ');
+          break;
+          
+        case 1:
+          // Negate the statement
+          if (/\bis\b|\bare\b|\bwas\b|\bwere\b/i.test(selectedSentence)) {
+            question = selectedSentence.replace(/\b(is|are|was|were)\b/i, (match) => {
+              return match + " not";
+            });
+          } else {
+            // If no "is/are/was/were" to negate, try another approach
+            question = "It is not true that " + selectedSentence.charAt(0).toLowerCase() + selectedSentence.slice(1);
+          }
+          break;
+          
+        case 2:
+          // Exaggerate or diminish a statement
+          if (/\b\d+\b/.test(selectedSentence)) {
+            // If there's a number, change it dramatically
+            question = selectedSentence.replace(/\b(\d+)\b/, (match) => {
+              const num = parseInt(match);
+              return (num * 10).toString(); // Multiply by 10 for exaggeration
+            });
+          } else {
+            // Add an extreme qualifier
+            const qualifiers = ["always", "never", "all", "none", "exclusively", "absolutely"];
+            const qualifier = qualifiers[Math.floor(Math.random() * qualifiers.length)];
+            const insertPosition = Math.min(3, words.length - 1);
+            words.splice(insertPosition, 0, qualifier);
+            question = words.join(' ');
+          }
+          break;
+          
+        case 3:
+          // Replace a key subject or object
+          // Find a proper noun or important term (often capitalized)
+          let replaced = false;
+          for (let j = 0; j < words.length; j++) {
+            if (words[j].length > 1 && words[j][0] === words[j][0].toUpperCase() && 
+                !/^(The|A|An|I|But|And|Or|If|When|While|After|Before)$/i.test(words[j])) {
+              // Found a potential proper noun
+              words[j] = getRandomProperNoun();
+              replaced = true;
+              break;
+            }
+          }
+          
+          // If no proper noun was found, replace a subject or object
+          if (!replaced) {
+            // Simple heuristic: choose a noun-like word in the middle of the sentence
+            const midpoint = Math.floor(words.length / 2);
+            for (let offset = 0; offset < words.length / 2; offset++) {
+              const idx = (midpoint + offset) % words.length;
+              if (words[idx].length > 4 && !/^(the|and|or|but|if|because|since|when|while)$/i.test(words[idx])) {
+                words[idx] = getRandomSubjectOrObject();
+                break;
+              }
+            }
+          }
+          
+          question = words.join(' ');
+          break;
+      }
+    }
+    
+    trueFalseQuestions.push({
+      id: i + 1,
+      question: question,
+      options: ["True", "False"],
+      correctAnswer: isTrue ? "True" : "False",
+      type: 'truefalse'
+    });
   }
   
-  // Simulate a processing delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  return trueFalseQuestions;
+};
+
+// Helper function to get opposites or unrelated terms for false statements
+const getOppositeOrUnrelated = (word: string): string => {
+  // List of common opposites
+  const opposites: Record<string, string> = {
+    'increase': 'decrease',
+    'decreased': 'increased',
+    'increasing': 'decreasing',
+    'decreasing': 'increasing',
+    'high': 'low',
+    'low': 'high',
+    'large': 'small',
+    'small': 'large',
+    'many': 'few',
+    'few': 'many',
+    'important': 'trivial',
+    'significant': 'insignificant',
+    'positive': 'negative',
+    'negative': 'positive',
+    'before': 'after',
+    'after': 'before',
+    'major': 'minor',
+    'minor': 'major',
+    'complex': 'simple',
+    'simple': 'complex',
+    'difficult': 'easy',
+    'easy': 'difficult',
+    'fast': 'slow',
+    'slow': 'fast',
+    'first': 'last',
+    'last': 'first',
+    'early': 'late',
+    'late': 'early',
+    'good': 'bad',
+    'bad': 'good',
+    'right': 'wrong',
+    'wrong': 'right',
+    'true': 'false',
+    'false': 'true',
+    'hot': 'cold',
+    'cold': 'hot',
+    'new': 'old',
+    'old': 'new'
+  };
   
-  return questions;
+  // Check for common opposites
+  const lowerWord = word.toLowerCase();
+  if (opposites[lowerWord]) {
+    // Preserve the original capitalization
+    if (word[0] === word[0].toUpperCase()) {
+      return opposites[lowerWord].charAt(0).toUpperCase() + opposites[lowerWord].slice(1);
+    }
+    return opposites[lowerWord];
+  }
+  
+  // For other words, generate unrelated terms
+  const unrelatedTerms = [
+    'dinosaur', 'spaceship', 'waterfall', 'orchestra', 'bicycle',
+    'mountain', 'penguin', 'lightning', 'rainbow', 'elephant',
+    'chocolate', 'tornado', 'festival', 'diamond', 'caterpillar',
+    'hamburger', 'telephone', 'backpack', 'orchestra', 'telescope'
+  ];
+  
+  return unrelatedTerms[Math.floor(Math.random() * unrelatedTerms.length)];
+};
+
+// Helper function to get random proper nouns for false statements
+const getRandomProperNoun = (): string => {
+  const properNouns = [
+    'Einstein', 'Shakespeare', 'Napoleon', 'Darwin', 'Columbus',
+    'Jupiter', 'Amazon', 'Sahara', 'Antarctica', 'Everest',
+    'Microsoft', 'Google', 'Toyota', 'Harvard', 'NASA',
+    'Rome', 'Tokyo', 'Cairo', 'Sydney', 'Toronto'
+  ];
+  
+  return properNouns[Math.floor(Math.random() * properNouns.length)];
+};
+
+// Helper function to get random subjects or objects for false statements
+const getRandomSubjectOrObject = (): string => {
+  const subjects = [
+    'scientists', 'researchers', 'teachers', 'students', 'politicians',
+    'animals', 'machines', 'computers', 'books', 'languages',
+    'planets', 'elements', 'molecules', 'theories', 'concepts',
+    'countries', 'governments', 'organizations', 'industries', 'societies'
+  ];
+  
+  return subjects[Math.floor(Math.random() * subjects.length)];
 };
 
 // Helper function to read file content

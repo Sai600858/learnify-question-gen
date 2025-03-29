@@ -1,7 +1,9 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-interface QuizContextType {
+export type QuestionType = 'mcq' | 'truefalse';
+
+export interface QuizContextType {
   name: string;
   setName: (name: string) => void;
   file: File | null;
@@ -20,6 +22,12 @@ interface QuizContextType {
   setScore: (score: number) => void;
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
+  questionType: QuestionType;
+  setQuestionType: (type: QuestionType) => void;
+  timeLimit: number;
+  setTimeLimit: (minutes: number) => void;
+  timeRemaining: number;
+  setTimeRemaining: (seconds: number) => void;
 }
 
 export interface Question {
@@ -27,6 +35,7 @@ export interface Question {
   question: string;
   options: string[];
   correctAnswer: string;
+  type: QuestionType;
 }
 
 const QuizContext = createContext<QuizContextType | undefined>(undefined);
@@ -41,6 +50,9 @@ export const QuizProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [questionType, setQuestionType] = useState<QuestionType>('mcq');
+  const [timeLimit, setTimeLimit] = useState(5); // Default 5 minutes
+  const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes in seconds
 
   return (
     <QuizContext.Provider value={{
@@ -52,7 +64,10 @@ export const QuizProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       currentStep, setCurrentStep,
       answers, setAnswers,
       score, setScore,
-      isLoading, setIsLoading
+      isLoading, setIsLoading,
+      questionType, setQuestionType,
+      timeLimit, setTimeLimit,
+      timeRemaining, setTimeRemaining
     }}>
       {children}
     </QuizContext.Provider>

@@ -6,6 +6,8 @@ import { Slider } from "@/components/ui/slider";
 import { useQuiz } from '@/context/QuizContext';
 import { generateQuestions } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 const QuizConfigPage: React.FC = () => {
   const { 
@@ -17,7 +19,12 @@ const QuizConfigPage: React.FC = () => {
     setCurrentStep, 
     setQuestions,
     setIsLoading,
-    isLoading
+    isLoading,
+    questionType,
+    setQuestionType,
+    timeLimit,
+    setTimeLimit,
+    setTimeRemaining
   } = useQuiz();
   const { toast } = useToast();
 
@@ -31,8 +38,11 @@ const QuizConfigPage: React.FC = () => {
       });
       
       // Generate questions based on file content
-      const generatedQuestions = await generateQuestions(fileContent, questionCount);
+      const generatedQuestions = await generateQuestions(fileContent, questionCount, questionType);
       setQuestions(generatedQuestions);
+      
+      // Set time remaining in seconds
+      setTimeRemaining(timeLimit * 60);
       
       // Move to quiz screen
       setCurrentStep(3);
@@ -56,7 +66,7 @@ const QuizConfigPage: React.FC = () => {
             Configure Your Quiz
           </CardTitle>
           <CardDescription>
-            Choose how many questions you want in your quiz
+            Customize your quiz settings
           </CardDescription>
         </CardHeader>
         
@@ -85,6 +95,49 @@ const QuizConfigPage: React.FC = () => {
               <p className="text-sm text-muted-foreground">
                 We'll generate {questionCount} questions from 
                 <span className="font-medium text-foreground"> {file?.name}</span>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Question Type</Label>
+              <RadioGroup 
+                value={questionType} 
+                onValueChange={(value) => setQuestionType(value as 'mcq' | 'truefalse')}
+                className="flex flex-col space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="mcq" id="mcq" />
+                  <Label htmlFor="mcq">Multiple Choice Questions</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="truefalse" id="truefalse" />
+                  <Label htmlFor="truefalse">True/False Questions</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label htmlFor="time-limit" className="text-sm font-medium">
+                  Time Limit (minutes)
+                </label>
+                <span className="text-xl font-medium text-primary">
+                  {timeLimit}
+                </span>
+              </div>
+              
+              <Slider
+                id="time-limit"
+                min={1}
+                max={30}
+                step={1}
+                value={[timeLimit]}
+                onValueChange={(value) => setTimeLimit(value[0])}
+                className="py-4"
+              />
+              
+              <p className="text-sm text-muted-foreground">
+                You'll have {timeLimit} minute{timeLimit !== 1 ? 's' : ''} to complete the quiz
               </p>
             </div>
           </div>
