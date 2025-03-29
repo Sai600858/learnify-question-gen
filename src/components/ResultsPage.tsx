@@ -31,8 +31,8 @@ const ResultsPage: React.FC = () => {
     if (score >= 90) return 'Excellent! You have a great understanding of the material.';
     if (score >= 80) return 'Great job! You know the material well.';
     if (score >= 70) return 'Good work! You have a solid grasp of most concepts.';
-    if (score >= 60) return 'Not bad. You're on the right track.';
-    if (score >= 50) return 'You passed, but there's room for improvement.';
+    if (score >= 60) return "Not bad. You're on the right track.";
+    if (score >= 50) return "You passed, but there's room for improvement.";
     return 'You might need to review the material again.';
   };
 
