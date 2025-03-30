@@ -1,3 +1,4 @@
+
 import { Question, QuestionType } from '../context/QuizContext';
 
 // Enhanced question generation with advanced NLP techniques
@@ -87,175 +88,33 @@ export const generateQuestions = async (
   
   // Generate questions based on the type
   if (type === 'mcq') {
-    questions.push(...generateMCQs(shuffledSentences, usedSentences, count));
+    // Allocate questions by cognitive level for balanced distribution
+    const comprehensionCount = Math.ceil(count * 0.4); // 40% comprehension questions
+    const applicationCount = Math.ceil(count * 0.3); // 30% application questions
+    const analysisCount = Math.floor(count * 0.3); // 30% analysis questions
+    
+    // Generate comprehension questions
+    questions.push(...generateComprehensionMCQs(shuffledSentences, usedSentences, comprehensionCount));
+    
+    // Generate application questions
+    questions.push(...generateApplicationMCQs(shuffledSentences, usedSentences, applicationCount));
+    
+    // Generate analysis questions
+    questions.push(...generateAnalysisMCQs(shuffledSentences, usedSentences, analysisCount));
   } else {
+    // For true/false, generate a mix of question types
     questions.push(...generateTrueFalse(shuffledSentences, usedSentences, count));
   }
   
   // If we couldn't generate enough questions, add some higher-level conceptual questions
   if (questions.length < count) {
-    // Extract key concepts using NLP-inspired techniques
-    const stopWords = new Set([
-      'a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'by', 
-      'from', 'with', 'in', 'of', 'this', 'that', 'these', 'those', 'is', 'are', 
-      'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 
-      'did', 'can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might',
-      'must', 'about', 'above', 'after', 'before', 'between', 'under', 'over'
-    ]);
-    
-    // Extract noun phrases and important terms (simple approximation)
-    const phrases: string[] = [];
-    
-    // Look for capitalized phrases and technical terms
-    sentences.forEach(sentence => {
-      // Find potential noun phrases (simple heuristic: 2-3 words with at least one non-stopword)
-      const words = sentence.split(' ');
-      
-      for (let i = 0; i < words.length - 1; i++) {
-        // Look for capitalized sequences (potential proper nouns and important concepts)
-        if (
-          words[i].length > 1 && 
-          words[i][0] === words[i][0].toUpperCase() && 
-          !words[i].match(/^[.,;:?!'"()[\]{}-]/) && 
-          !stopWords.has(words[i].toLowerCase())
-        ) {
-          let phrase = words[i];
-          
-          // Check if next word is also capitalized
-          if (
-            i + 1 < words.length && 
-            words[i+1].length > 1 &&
-            words[i+1][0] === words[i+1][0].toUpperCase() &&
-            !words[i+1].match(/^[.,;:?!'"()[\]{}-]/)
-          ) {
-            phrase += ' ' + words[i+1];
-            
-            // Check for three-word phrases
-            if (
-              i + 2 < words.length &&
-              words[i+2].length > 1 &&
-              words[i+2][0] === words[i+2][0].toUpperCase() &&
-              !words[i+2].match(/^[.,;:?!'"()[\]{}-]/)
-            ) {
-              phrase += ' ' + words[i+2];
-            }
-          }
-          
-          if (phrase.length > 5) {
-            phrases.push(phrase);
-          }
-        }
-        
-        // Look for technical terms (longer words, often not capitalized)
-        if (
-          words[i].length > 6 && 
-          !stopWords.has(words[i].toLowerCase()) &&
-          !words[i].match(/^[.,;:?!'"()[\]{}-]/)
-        ) {
-          phrases.push(words[i]);
-        }
-      }
-    });
-    
-    // Count phrase frequencies
-    const phraseFrequency: Record<string, number> = {};
-    phrases.forEach(phrase => {
-      phraseFrequency[phrase] = (phraseFrequency[phrase] || 0) + 1;
-    });
-    
-    // Sort phrases by frequency
-    const sortedPhrases = Object.entries(phraseFrequency)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(entry => entry[0]);
-    
-    // Generate concept questions based on question type
-    for (let i = questions.length; i < count; i++) {
-      if (type === 'mcq') {
-        const conceptIndex = i % sortedPhrases.length;
-        const concept = sortedPhrases[conceptIndex];
-        
-        // Create options - other frequent phrases make good distractors
-        const otherConcepts = sortedPhrases.filter(w => w !== concept).slice(0, 3);
-        
-        // All options
-        const allOptions = [concept, ...otherConcepts];
-        // Shuffle options
-        for (let j = allOptions.length - 1; j > 0; j--) {
-          const k = Math.floor(Math.random() * (j + 1));
-          [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
-        }
-        
-        // Generate different types of questions for variety
-        const questionTypes = [
-          `Which of the following concepts is most central to the document?`,
-          `Which term represents a key concept discussed in the document?`,
-          `According to the document, which of these is an important concept?`,
-          `Which of the following terms is defined or explained in the document?`,
-          `Which concept below is emphasized in the document?`
-        ];
-        
-        const questionTemplate = questionTypes[i % questionTypes.length];
-        
-        questions.push({
-          id: i + 1,
-          question: questionTemplate,
-          options: allOptions,
-          correctAnswer: concept,
-          type: 'mcq'
-        });
-      } else {
-        // Create true/false question with conceptual understanding
-        const conceptIndex = i % sortedPhrases.length;
-        const concept = sortedPhrases[conceptIndex];
-        const isTrue = Math.random() > 0.5;
-        
-        // Generate different types of T/F questions
-        if (isTrue) {
-          const trueTemplates = [
-            `The concept of "${concept}" is a key topic discussed in the document.`,
-            `"${concept}" is an important term covered in the document.`,
-            `The document provides information about "${concept}".`,
-            `"${concept}" is directly mentioned or referenced in the document.`,
-            `Understanding "${concept}" is relevant to comprehending the document's content.`
-          ];
-          
-          questions.push({
-            id: i + 1,
-            question: trueTemplates[i % trueTemplates.length],
-            options: ["True", "False"],
-            correctAnswer: "True",
-            type: 'truefalse'
-          });
-        } else {
-          // For false questions, combine with a concept not in the top frequencies
-          const otherPhrases = Object.keys(phraseFrequency)
-            .filter(phrase => !sortedPhrases.includes(phrase))
-            .slice(0, 10);
-          
-          const falseConcept = otherPhrases.length > 0 
-            ? otherPhrases[i % otherPhrases.length]
-            : sortedPhrases[(conceptIndex + 3) % sortedPhrases.length]; // Fallback
-          
-          const falseTemplates = [
-            `"${falseConcept}" is more central to the document than "${concept}".`,
-            `The document primarily focuses on "${falseConcept}" rather than "${concept}".`,
-            `"${falseConcept}" is mentioned more frequently than "${concept}" in the document.`,
-            `The document defines "${falseConcept}" as a subset of "${concept}".`,
-            `"${falseConcept}" is presented as the main alternative to "${concept}" in the document.`
-          ];
-          
-          questions.push({
-            id: i + 1,
-            question: falseTemplates[i % falseTemplates.length],
-            options: ["True", "False"],
-            correctAnswer: "False",
-            type: 'truefalse'
-          });
-        }
-      }
-    }
+    questions.push(...generateConceptualQuestions(text, count - questions.length, type));
   }
+  
+  // Assign sequential IDs to questions
+  questions.forEach((question, index) => {
+    question.id = index + 1;
+  });
   
   // Simulate a processing delay
   await new Promise(resolve => setTimeout(resolve, 1500));
@@ -263,17 +122,16 @@ export const generateQuestions = async (
   return questions;
 };
 
-// Function to generate Multiple Choice Questions
-const generateMCQs = (
+// Function to generate comprehension-level MCQ questions
+const generateComprehensionMCQs = (
   sentences: string[], 
   usedSentences: Set<string>, 
   count: number
 ): Question[] => {
-  const mcqs: Question[] = [];
-  const questionTypes = ['factual', 'conceptual', 'analytical', 'application'];
+  const comprehensionQuestions: Question[] = [];
   
-  // Generate different types of MCQs based on sentence content
-  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 2)); i++) {
+  // Generate different types of comprehension questions
+  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 3)); i++) {
     // Pick a sentence that hasn't been used
     let selectedSentence = "";
     for (const sentence of sentences) {
@@ -286,242 +144,263 @@ const generateMCQs = (
     
     if (!selectedSentence) continue;
     
-    // Determine question type for this iteration to get a variety of question types
-    const questionType = questionTypes[i % questionTypes.length];
+    // Create a factual recall or definition question
+    // Extract meaningful words (nouns, verbs, adjectives) as potential keywords
+    const words = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 4) // Focus on longer words which tend to be more meaningful
+      .filter(w => !/^(these|those|there|their|about|would|should|could|which|where|when|what|this|that)$/i.test(w)); // Filter common words
     
-    if (questionType === 'factual') {
-      // Create a fill-in-the-blank or factual recall question
-      
-      // Extract meaningful words (nouns, verbs, adjectives) as potential keywords
-      const words = selectedSentence.split(' ')
+    if (words.length < 3) continue;
+    
+    // Choose words that are likely to be domain-specific terms
+    const potentialKeywords = words.filter(word => 
+      // Words with capital letters are often proper nouns or important terms
+      (word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 5) || 
+      // Longer words are often domain-specific
+      word.length > 7
+    );
+    
+    // If we can't find specialized terms, fall back to any sufficiently long words
+    const keywordCandidates = potentialKeywords.length > 0 ? potentialKeywords : words.filter(w => w.length > 5);
+    
+    if (keywordCandidates.length === 0) continue;
+    
+    // Select a keyword
+    const keywordIndex = Math.floor(Math.random() * keywordCandidates.length);
+    const keyword = keywordCandidates[keywordIndex];
+    
+    // Create a variety of comprehension questions
+    const questionTypes = [
+      // Direct recall
+      `According to the document, what is ${keyword.toLowerCase()}?`,
+      // Definition
+      `How does the document define or describe ${keyword.toLowerCase()}?`,
+      // Fill-in-the-blank
+      selectedSentence.replace(new RegExp(`\\b${keyword}\\b`, 'i'), '_____'),
+      // Main idea
+      `Which statement best represents the main idea about ${keyword.toLowerCase()} in the document?`,
+      // Direct fact
+      `What does the document state about ${keyword.toLowerCase()}?`
+    ];
+    
+    const questionText = questionTypes[i % questionTypes.length];
+    
+    // Generate options
+    const correctAnswer = extractCorrectAnswerFromSentence(selectedSentence, keyword);
+    
+    // Find other sentences to extract distractor options from
+    const otherSentences = sentences.filter(s => s !== selectedSentence)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5);
+    
+    // Extract potential distractor words from other sentences
+    const distractorWords = otherSentences.flatMap(s => 
+      s.split(' ')
         .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(w => w.length > 4) // Focus on longer words which tend to be more meaningful
-        .filter(w => !/^(these|those|there|their|about|would|should|could|which|where|when|what|this|that)$/i.test(w)); // Filter common words
-      
-      if (words.length < 3) continue;
-      
-      // Choose words that are likely to be domain-specific terms
-      const potentialKeywords = words.filter(word => 
-        // Words with capital letters are often proper nouns or important terms
-        (word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 5) || 
-        // Longer words are often domain-specific
-        word.length > 7
-      );
-      
-      // If we can't find specialized terms, fall back to any sufficiently long words
-      const keywordCandidates = potentialKeywords.length > 0 ? potentialKeywords : words.filter(w => w.length > 5);
-      
-      if (keywordCandidates.length === 0) continue;
-      
-      // Select a keyword
-      const keywordIndex = Math.floor(Math.random() * keywordCandidates.length);
-      const keyword = keywordCandidates[keywordIndex];
-      
-      // Create a fill-in-the-blank question
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      const questionText = selectedSentence.replace(regex, '_____');
-      
-      // If we couldn't create a question, skip
-      if (questionText === selectedSentence) continue;
-      
-      // Generate options
-      const correctAnswer = keyword;
-      
-      // Find other sentences to extract distractor options from
-      const otherSentences = sentences.filter(s => s !== selectedSentence)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 5);
-      
-      // Extract potential distractor words from other sentences
-      const distractorWords = otherSentences.flatMap(s => 
-        s.split(' ')
-          .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-          .filter(w => 
-            w.length > 4 && 
-            w !== correctAnswer && 
-            w.toLowerCase() !== correctAnswer.toLowerCase() &&
-            // Try to match the part of speech (rough heuristic)
-            (
-              (correctAnswer.endsWith('ing') && w.endsWith('ing')) ||
-              (correctAnswer.endsWith('ed') && w.endsWith('ed')) ||
-              (correctAnswer.endsWith('s') && w.endsWith('s')) ||
-              (correctAnswer.endsWith('ly') && w.endsWith('ly')) ||
-              (correctAnswer.charAt(0) === correctAnswer.charAt(0).toUpperCase() && 
-              w.charAt(0) === w.charAt(0).toUpperCase()) ||
-              true // Fall back to any word if we can't match part of speech
-            )
-          )
-      );
-      
-      // Get unique distractors
-      const uniqueDistractors = [...new Set(distractorWords)];
-      const shuffledDistractors = uniqueDistractors.sort(() => Math.random() - 0.5).slice(0, 3);
-      
-      // Generate plausible distractors if needed
-      while (shuffledDistractors.length < 3) {
-        // Get words that are similar to the correct answer
-        const similarLengthWords = words.filter(w => 
-          Math.abs(w.length - correctAnswer.length) <= 2 && 
-          w !== correctAnswer &&
-          !shuffledDistractors.includes(w)
-        );
-        
-        if (similarLengthWords.length > 0) {
-          const randomWord = similarLengthWords[Math.floor(Math.random() * similarLengthWords.length)];
-          if (!shuffledDistractors.includes(randomWord)) {
-            shuffledDistractors.push(randomWord);
-          }
-        } else {
-          // Fall back to generic options if necessary
-          const fallbackOptions = ['concept', 'process', 'factor', 'element', 'system', 'method', 'theory'];
-          for (const option of fallbackOptions) {
-            if (shuffledDistractors.length >= 3) break;
-            if (!shuffledDistractors.includes(option) && option !== correctAnswer) {
-              shuffledDistractors.push(option);
-            }
-          }
+        .filter(w => 
+          w.length > 4 && 
+          w !== correctAnswer && 
+          w.toLowerCase() !== correctAnswer.toLowerCase())
+    );
+    
+    // Get unique distractors
+    const uniqueDistractors = [...new Set(distractorWords)];
+    const shuffledDistractors = uniqueDistractors.sort(() => Math.random() - 0.5).slice(0, 3);
+    
+    // Generate plausible distractors if needed
+    while (shuffledDistractors.length < 3) {
+      const fallbackOptions = ['concept', 'process', 'factor', 'element', 'system', 'method', 'theory'];
+      for (const option of fallbackOptions) {
+        if (shuffledDistractors.length >= 3) break;
+        if (!shuffledDistractors.includes(option) && option !== correctAnswer) {
+          shuffledDistractors.push(option);
         }
       }
-      
-      // Combine and shuffle options
-      const allOptions = [correctAnswer, ...shuffledDistractors];
-      for (let j = allOptions.length - 1; j > 0; j--) {
-        const k = Math.floor(Math.random() * (j + 1));
-        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
-      }
-      
-      mcqs.push({
-        id: i + 1,
-        question: questionText,
-        options: allOptions,
-        correctAnswer: correctAnswer,
-        type: 'mcq'
-      });
-    } 
-    else if (questionType === 'conceptual') {
-      // Create a conceptual question based on the sentence content
-      // Extract the main concepts from the sentence
-      
-      const conceptQuestion = `Which concept is most directly related to this statement: "${selectedSentence}"`;
-      
-      // Extract key terms from the sentence
-      const words = selectedSentence.split(' ')
-        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(w => w.length > 5) // Focus on longer words
-        .filter(w => !/^(these|those|there|their|about|would|should|could|which|where|when|what|this|that)$/i.test(w));
-      
-      if (words.length < 2) continue;
-      
-      // Find a core concept (likely the subject of the sentence)
-      const correctAnswer = words[Math.floor(Math.random() * Math.min(3, words.length))];
-      
-      // Get other concepts from different sentences
-      const otherConcepts = sentences
-        .filter(s => s !== selectedSentence)
-        .flatMap(s => 
-          s.split(' ')
-            .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-            .filter(w => 
-              w.length > 5 && 
-              w !== correctAnswer &&
-              w.toLowerCase() !== correctAnswer.toLowerCase() &&
-              !/^(these|those|there|their|about|would|should|could|which|where|when|what|this|that)$/i.test(w)
-            )
-        );
-      
-      const uniqueOtherConcepts = [...new Set(otherConcepts)];
-      const shuffledOtherConcepts = uniqueOtherConcepts.sort(() => Math.random() - 0.5).slice(0, 3);
-      
-      // Ensure we have enough distractors
-      while (shuffledOtherConcepts.length < 3) {
-        const fallbackConcepts = ['methodology', 'framework', 'paradigm', 'principle', 'analysis', 'structure'];
-        
-        for (const concept of fallbackConcepts) {
-          if (shuffledOtherConcepts.length >= 3) break;
-          if (!shuffledOtherConcepts.includes(concept) && concept !== correctAnswer) {
-            shuffledOtherConcepts.push(concept);
-          }
-        }
-      }
-      
-      // Combine and shuffle options
-      const allOptions = [correctAnswer, ...shuffledOtherConcepts];
-      for (let j = allOptions.length - 1; j > 0; j--) {
-        const k = Math.floor(Math.random() * (j + 1));
-        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
-      }
-      
-      mcqs.push({
-        id: i + 1,
-        question: conceptQuestion,
-        options: allOptions,
-        correctAnswer: correctAnswer,
-        type: 'mcq'
-      });
     }
-    else if (questionType === 'analytical' || questionType === 'application') {
-      // Create an analytical or application question
-      
-      let questionText = '';
-      if (questionType === 'analytical') {
-        questionText = `Which conclusion can be drawn from this statement: "${selectedSentence}"`;
-      } else {
-        questionText = `How would you apply the principle described in: "${selectedSentence}"`;
-      }
-      
-      // Extract key terms from the sentence for context
-      const contentWords = selectedSentence.split(' ')
-        .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(w => w.length > 5);
-      
-      if (contentWords.length < 3) continue;
-      
-      // Create a plausible correct answer (this is where AI/LLM would be ideal)
-      // For this simulator, we'll create generic answers
-      
-      const correctAnswers = [
-        `It demonstrates the importance of ${contentWords[0]} in understanding ${contentWords[contentWords.length-1]}`,
-        `It shows how ${contentWords[1]} relates to ${contentWords[contentWords.length-2]}`,
-        `It highlights the connection between ${contentWords[0]} and ${contentWords[Math.floor(contentWords.length/2)]}`,
-        `It suggests that ${contentWords[1]} is a key factor in ${contentWords[contentWords.length-1]}`,
-        `It indicates that ${contentWords[0]} can lead to better ${contentWords[contentWords.length-1]}`,
-      ];
-      
-      const correctAnswer = correctAnswers[i % correctAnswers.length];
-      
-      // Create plausible wrong answers that sound reasonable but are incorrect
-      const wrongAnswers = [
-        `It contradicts established theories about ${contentWords[0]}`,
-        `It disproves the relationship between ${contentWords[0]} and ${contentWords[contentWords.length-1]}`,
-        `It shows that ${contentWords[1]} is unrelated to ${contentWords[Math.floor(contentWords.length/2)]}`,
-        `It demonstrates that ${contentWords[0]} is less important than previously thought`,
-        `It indicates that alternative approaches to ${contentWords[contentWords.length-1]} are more effective`,
-      ];
-      
-      // Select 3 wrong answers
-      const shuffledWrongAnswers = [...wrongAnswers].sort(() => Math.random() - 0.5).slice(0, 3);
-      
-      // Combine and shuffle options
-      const allOptions = [correctAnswer, ...shuffledWrongAnswers];
-      for (let j = allOptions.length - 1; j > 0; j--) {
-        const k = Math.floor(Math.random() * (j + 1));
-        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
-      }
-      
-      mcqs.push({
-        id: i + 1,
-        question: questionText,
-        options: allOptions,
-        correctAnswer: correctAnswer,
-        type: 'mcq'
-      });
+    
+    // Combine and shuffle options
+    const allOptions = [correctAnswer, ...shuffledDistractors];
+    for (let j = allOptions.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
     }
+    
+    comprehensionQuestions.push({
+      id: i + 1,
+      question: questionText,
+      options: allOptions,
+      correctAnswer: correctAnswer,
+      type: 'mcq'
+    });
   }
   
-  return mcqs;
+  return comprehensionQuestions;
 };
 
-// Function to generate True/False Questions
+// Function to generate application-level MCQ questions
+const generateApplicationMCQs = (
+  sentences: string[], 
+  usedSentences: Set<string>, 
+  count: number
+): Question[] => {
+  const applicationQuestions: Question[] = [];
+  
+  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 3)); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of sentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
+      }
+    }
+    
+    if (!selectedSentence) continue;
+    
+    // Extract key terms from the sentence for context
+    const contentWords = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 5);
+    
+    if (contentWords.length < 3) continue;
+    
+    // Create application question templates
+    const applicationTemplates = [
+      `How would you apply the principle of ${contentWords[0]} in a real-world scenario?`,
+      `Which of the following best demonstrates the application of ${contentWords[1]}?`,
+      `In what situation would you implement the concept of ${contentWords[0]} described in the document?`,
+      `Based on the document, how could ${contentWords[0]} be used to solve a problem?`,
+      `Which example correctly applies the ${contentWords[0]} concept from the document?`
+    ];
+    
+    const questionText = applicationTemplates[i % applicationTemplates.length];
+    
+    // Create plausible answers that apply the concept
+    const correctAnswers = [
+      `Using ${contentWords[0]} to improve ${contentWords[contentWords.length-1]} efficiency in a business setting`,
+      `Applying ${contentWords[1]} techniques when designing new ${contentWords[contentWords.length-2]} systems`,
+      `Implementing ${contentWords[0]} strategies to optimize ${contentWords[Math.floor(contentWords.length/2)]} processes`,
+      `Utilizing ${contentWords[0]} methods to solve problems related to ${contentWords[contentWords.length-1]}`,
+      `Incorporating ${contentWords[0]} principles into ${contentWords[contentWords.length-1]} development practices`
+    ];
+    
+    const correctAnswer = correctAnswers[i % correctAnswers.length];
+    
+    // Create plausible wrong answers that misapply or misunderstand the concept
+    const wrongAnswers = [
+      `Replacing ${contentWords[0]} with unrelated approaches that don't address the core problem`,
+      `Using ${contentWords[0]} in a context where it doesn't apply or solve the intended issue`,
+      `Implementing ${contentWords[0]} without consideration for ${contentWords[Math.floor(contentWords.length/2)]} requirements`,
+      `Applying ${contentWords[0]} in a way that contradicts its fundamental principles`,
+      `Utilizing ${contentWords[0]} techniques that are inappropriate for the given scenario`
+    ];
+    
+    // Select 3 wrong answers
+    const shuffledWrongAnswers = [...wrongAnswers].sort(() => Math.random() - 0.5).slice(0, 3);
+    
+    // Combine and shuffle options
+    const allOptions = [correctAnswer, ...shuffledWrongAnswers];
+    for (let j = allOptions.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+    }
+    
+    applicationQuestions.push({
+      id: i + 1,
+      question: questionText,
+      options: allOptions,
+      correctAnswer: correctAnswer,
+      type: 'mcq'
+    });
+  }
+  
+  return applicationQuestions;
+};
+
+// Function to generate analysis-level MCQ questions
+const generateAnalysisMCQs = (
+  sentences: string[], 
+  usedSentences: Set<string>, 
+  count: number
+): Question[] => {
+  const analysisQuestions: Question[] = [];
+  
+  for (let i = 0; i < Math.min(count, Math.floor(sentences.length / 3)); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of sentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
+      }
+    }
+    
+    if (!selectedSentence) continue;
+    
+    // Extract key terms from the sentence for context
+    const contentWords = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 5);
+    
+    if (contentWords.length < 3) continue;
+    
+    // Create analysis question templates
+    const analysisTemplates = [
+      `What conclusion can be drawn from the statement about ${contentWords[0]}?`,
+      `Which of the following best analyzes the relationship between ${contentWords[0]} and ${contentWords[contentWords.length-1]}?`,
+      `What is the underlying assumption in the statement about ${contentWords[0]}?`,
+      `How does ${contentWords[0]} relate to ${contentWords[Math.floor(contentWords.length/2)]} in the document?`,
+      `What inferences can be made about ${contentWords[0]} based on the document?`
+    ];
+    
+    const questionText = analysisTemplates[i % analysisTemplates.length];
+    
+    // Create plausible correct answers for analysis questions
+    const correctAnswers = [
+      `${contentWords[0]} serves as a fundamental component that influences ${contentWords[contentWords.length-1]}`,
+      `The relationship between ${contentWords[0]} and ${contentWords[contentWords.length-1]} demonstrates a key principle in this field`,
+      `The document suggests that ${contentWords[0]} functions as a critical factor in determining ${contentWords[Math.floor(contentWords.length/2)]}`,
+      `${contentWords[0]} represents an important variable that affects how ${contentWords[contentWords.length-1]} operates`,
+      `The interconnection between ${contentWords[0]} and ${contentWords[contentWords.length-1]} reveals patterns not immediately obvious`
+    ];
+    
+    const correctAnswer = correctAnswers[i % correctAnswers.length];
+    
+    // Create plausible wrong answers that contain logical fallacies or misanalyze the content
+    const wrongAnswers = [
+      `${contentWords[0]} and ${contentWords[contentWords.length-1]} have no meaningful relationship in this context`,
+      `The document contradicts established theories about ${contentWords[0]} and its functions`,
+      `${contentWords[0]} is presented as irrelevant to the main topic discussed in the document`,
+      `The text implies that ${contentWords[0]} negatively impacts all aspects of ${contentWords[contentWords.length-1]}`,
+      `${contentWords[0]} is described as less significant than other factors mentioned in the document`
+    ];
+    
+    // Select 3 wrong answers
+    const shuffledWrongAnswers = [...wrongAnswers].sort(() => Math.random() - 0.5).slice(0, 3);
+    
+    // Combine and shuffle options
+    const allOptions = [correctAnswer, ...shuffledWrongAnswers];
+    for (let j = allOptions.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+    }
+    
+    analysisQuestions.push({
+      id: i + 1,
+      question: questionText,
+      options: allOptions,
+      correctAnswer: correctAnswer,
+      type: 'mcq'
+    });
+  }
+  
+  return analysisQuestions;
+};
+
+// Function to generate True/False Questions with balanced cognitive levels
 const generateTrueFalse = (
   sentences: string[], 
   usedSentences: Set<string>, 
@@ -529,7 +408,13 @@ const generateTrueFalse = (
 ): Question[] => {
   const trueFalseQuestions: Question[] = [];
   
-  for (let i = 0; i < Math.min(count, sentences.length); i++) {
+  // Divide questions among cognitive levels
+  const comprehensionCount = Math.ceil(count * 0.4); // 40% comprehension
+  const applicationCount = Math.ceil(count * 0.3); // 30% application
+  const analysisCount = Math.floor(count * 0.3); // 30% analysis
+  
+  // Generate comprehension true/false questions
+  for (let i = 0; i < Math.min(comprehensionCount, sentences.length); i++) {
     // Pick a sentence that hasn't been used
     let selectedSentence = "";
     for (const sentence of sentences) {
@@ -552,93 +437,7 @@ const generateTrueFalse = (
       question = selectedSentence;
     } else {
       // Modify the sentence to make it false
-      const words = selectedSentence.split(' ');
-      
-      // Strategies to make a false statement:
-      const strategy = Math.floor(Math.random() * 4);
-      
-      switch (strategy) {
-        case 0:
-          // Replace a key word with an opposite or unrelated term
-          const keywordIndex = Math.floor(Math.random() * words.length);
-          const originalWord = words[keywordIndex];
-          
-          // Skip short words or common words
-          if (originalWord.length <= 4 || /^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(originalWord)) {
-            // Try again with another word
-            for (let j = 0; j < words.length; j++) {
-              const idx = (keywordIndex + j) % words.length;
-              if (words[idx].length > 4 && !/^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(words[idx])) {
-                words[idx] = getOppositeOrUnrelated(words[idx]);
-                break;
-              }
-            }
-          } else {
-            words[keywordIndex] = getOppositeOrUnrelated(originalWord);
-          }
-          question = words.join(' ');
-          break;
-          
-        case 1:
-          // Negate the statement
-          if (/\bis\b|\bare\b|\bwas\b|\bwere\b/i.test(selectedSentence)) {
-            question = selectedSentence.replace(/\b(is|are|was|were)\b/i, (match) => {
-              return match + " not";
-            });
-          } else {
-            // If no "is/are/was/were" to negate, try another approach
-            question = "It is not true that " + selectedSentence.charAt(0).toLowerCase() + selectedSentence.slice(1);
-          }
-          break;
-          
-        case 2:
-          // Exaggerate or diminish a statement
-          if (/\b\d+\b/.test(selectedSentence)) {
-            // If there's a number, change it dramatically
-            question = selectedSentence.replace(/\b(\d+)\b/, (match) => {
-              const num = parseInt(match);
-              return (num * 10).toString(); // Multiply by 10 for exaggeration
-            });
-          } else {
-            // Add an extreme qualifier
-            const qualifiers = ["always", "never", "all", "none", "exclusively", "absolutely"];
-            const qualifier = qualifiers[Math.floor(Math.random() * qualifiers.length)];
-            const insertPosition = Math.min(3, words.length - 1);
-            words.splice(insertPosition, 0, qualifier);
-            question = words.join(' ');
-          }
-          break;
-          
-        case 3:
-          // Replace a key subject or object
-          // Find a proper noun or important term (often capitalized)
-          let replaced = false;
-          for (let j = 0; j < words.length; j++) {
-            if (words[j].length > 1 && words[j][0] === words[j][0].toUpperCase() && 
-                !/^(The|A|An|I|But|And|Or|If|When|While|After|Before)$/i.test(words[j])) {
-              // Found a potential proper noun
-              words[j] = getRandomProperNoun();
-              replaced = true;
-              break;
-            }
-          }
-          
-          // If no proper noun was found, replace a subject or object
-          if (!replaced) {
-            // Simple heuristic: choose a noun-like word in the middle of the sentence
-            const midpoint = Math.floor(words.length / 2);
-            for (let offset = 0; offset < words.length / 2; offset++) {
-              const idx = (midpoint + offset) % words.length;
-              if (words[idx].length > 4 && !/^(the|and|or|but|if|because|since|when|while)$/i.test(words[idx])) {
-                words[idx] = getRandomSubjectOrObject();
-                break;
-              }
-            }
-          }
-          
-          question = words.join(' ');
-          break;
-      }
+      question = createFalseStatement(selectedSentence);
     }
     
     trueFalseQuestions.push({
@@ -650,7 +449,341 @@ const generateTrueFalse = (
     });
   }
   
+  // Generate application true/false questions
+  for (let i = 0; i < Math.min(applicationCount, sentences.length); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of sentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
+      }
+    }
+    
+    if (!selectedSentence) continue;
+    
+    // Extract key terms
+    const contentWords = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 5);
+    
+    if (contentWords.length < 2) continue;
+    
+    const isTrue = Math.random() > 0.5;
+    let question: string;
+    
+    if (isTrue) {
+      const trueTemplates = [
+        `You could apply the concept of ${contentWords[0]} to solve problems in related fields.`,
+        `The principles of ${contentWords[0]} described in the document could be implemented in practical scenarios.`,
+        `The document suggests that ${contentWords[0]} can be effectively used in ${contentWords[contentWords.length-1]} situations.`,
+        `Based on the document, ${contentWords[0]} would be useful for improving ${contentWords[Math.floor(contentWords.length/2)]} processes.`
+      ];
+      
+      question = trueTemplates[i % trueTemplates.length];
+    } else {
+      const falseTemplates = [
+        `${contentWords[0]} would be ineffective when applied to any real-world scenarios.`,
+        `The document indicates that ${contentWords[0]} has no practical applications.`,
+        `According to the document, ${contentWords[0]} cannot be implemented in ${contentWords[contentWords.length-1]} contexts.`,
+        `The concepts of ${contentWords[0]} described in the document are purely theoretical with no practical use cases.`
+      ];
+      
+      question = falseTemplates[i % falseTemplates.length];
+    }
+    
+    trueFalseQuestions.push({
+      id: comprehensionCount + i + 1,
+      question: question,
+      options: ["True", "False"],
+      correctAnswer: isTrue ? "True" : "False",
+      type: 'truefalse'
+    });
+  }
+  
+  // Generate analysis true/false questions
+  for (let i = 0; i < Math.min(analysisCount, sentences.length); i++) {
+    // Pick a sentence that hasn't been used
+    let selectedSentence = "";
+    for (const sentence of sentences) {
+      if (!usedSentences.has(sentence)) {
+        selectedSentence = sentence;
+        usedSentences.add(sentence);
+        break;
+      }
+    }
+    
+    if (!selectedSentence) continue;
+    
+    // Extract key terms
+    const contentWords = selectedSentence.split(' ')
+      .map(w => w.trim().replace(/[^a-zA-Z0-9]/g, ''))
+      .filter(w => w.length > 5);
+    
+    if (contentWords.length < 2) continue;
+    
+    const isTrue = Math.random() > 0.5;
+    let question: string;
+    
+    if (isTrue) {
+      const trueTemplates = [
+        `The document implies that ${contentWords[0]} and ${contentWords[contentWords.length-1]} are interconnected concepts.`,
+        `A critical analysis of the document would reveal that ${contentWords[0]} significantly impacts ${contentWords[Math.floor(contentWords.length/2)]}.`,
+        `One can infer from the document that ${contentWords[0]} represents a fundamental principle in this field.`,
+        `The relationship between ${contentWords[0]} and ${contentWords[contentWords.length-1]} suggests an underlying pattern in this domain.`
+      ];
+      
+      question = trueTemplates[i % trueTemplates.length];
+    } else {
+      const falseTemplates = [
+        `The document presents ${contentWords[0]} as contradicting established theories in this field.`,
+        `An analysis of the document reveals that ${contentWords[0]} invalidates the concept of ${contentWords[contentWords.length-1]}.`,
+        `The document implies that ${contentWords[0]} and ${contentWords[contentWords.length-1]} are completely unrelated concepts.`,
+        `A critical examination of the document would show that ${contentWords[0]} is irrelevant to the main subject matter.`
+      ];
+      
+      question = falseTemplates[i % falseTemplates.length];
+    }
+    
+    trueFalseQuestions.push({
+      id: comprehensionCount + applicationCount + i + 1,
+      question: question,
+      options: ["True", "False"],
+      correctAnswer: isTrue ? "True" : "False",
+      type: 'truefalse'
+    });
+  }
+  
   return trueFalseQuestions;
+};
+
+// Helper function to create false statements
+const createFalseStatement = (sentence: string): string => {
+  const words = sentence.split(' ');
+  
+  // Strategies to make a false statement:
+  const strategy = Math.floor(Math.random() * 4);
+  
+  switch (strategy) {
+    case 0:
+      // Replace a key word with an opposite or unrelated term
+      const keywordIndex = Math.floor(Math.random() * words.length);
+      const originalWord = words[keywordIndex];
+      
+      // Skip short words or common words
+      if (originalWord.length <= 4 || /^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(originalWord)) {
+        // Try again with another word
+        for (let j = 0; j < words.length; j++) {
+          const idx = (keywordIndex + j) % words.length;
+          if (words[idx].length > 4 && !/^(the|and|or|but|if|is|are|a|an|to|in|on|by)$/i.test(words[idx])) {
+            words[idx] = getOppositeOrUnrelated(words[idx]);
+            break;
+          }
+        }
+      } else {
+        words[keywordIndex] = getOppositeOrUnrelated(originalWord);
+      }
+      return words.join(' ');
+      
+    case 1:
+      // Negate the statement
+      if (/\bis\b|\bare\b|\bwas\b|\bwere\b/i.test(sentence)) {
+        return sentence.replace(/\b(is|are|was|were)\b/i, (match) => {
+          return match + " not";
+        });
+      } else {
+        // If no "is/are/was/were" to negate, try another approach
+        return "It is not true that " + sentence.charAt(0).toLowerCase() + sentence.slice(1);
+      }
+      
+    case 2:
+      // Exaggerate or diminish a statement
+      if (/\b\d+\b/.test(sentence)) {
+        // If there's a number, change it dramatically
+        return sentence.replace(/\b(\d+)\b/, (match) => {
+          const num = parseInt(match);
+          return (num * 10).toString(); // Multiply by 10 for exaggeration
+        });
+      } else {
+        // Add an extreme qualifier
+        const qualifiers = ["always", "never", "all", "none", "exclusively", "absolutely"];
+        const qualifier = qualifiers[Math.floor(Math.random() * qualifiers.length)];
+        const insertPosition = Math.min(3, words.length - 1);
+        words.splice(insertPosition, 0, qualifier);
+        return words.join(' ');
+      }
+      
+    case 3:
+      // Replace a key subject or object with an unrelated term
+      for (let j = 0; j < words.length; j++) {
+        if (words[j].length > 1 && words[j][0] === words[j][0].toUpperCase() && 
+            !/^(The|A|An|I|But|And|Or|If|When|While|After|Before)$/i.test(words[j])) {
+          words[j] = getRandomProperNoun();
+          return words.join(' ');
+        }
+      }
+      
+      // If no proper noun was found, replace a longer word
+      for (let j = 0; j < words.length; j++) {
+        if (words[j].length > 5 && !/^(because|therefore|however|although)$/i.test(words[j])) {
+          words[j] = getRandomSubjectOrObject();
+          return words.join(' ');
+        }
+      }
+      
+      // Fallback - add a contradictory statement
+      return sentence + ", which is completely untrue";
+  }
+  
+  return sentence; // Shouldn't reach here but TypeScript expects a return
+};
+
+// Helper function to extract a correct answer from a sentence based on a keyword
+const extractCorrectAnswerFromSentence = (sentence: string, keyword: string): string => {
+  // Simple implementation - use the keyword as the answer
+  // In a more sophisticated system, this would extract the relevant phrase or definition
+  return keyword;
+};
+
+// Function to generate higher-level conceptual questions when we need more questions
+const generateConceptualQuestions = (text: string, count: number, type: QuestionType): Question[] => {
+  const questions: Question[] = [];
+  
+  // Extract key concepts using NLP-inspired techniques
+  const stopWords = new Set([
+    'a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'by', 
+    'from', 'with', 'in', 'of', 'this', 'that', 'these', 'those', 'is', 'are', 
+    'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 
+    'did', 'can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might',
+    'must', 'about', 'above', 'after', 'before', 'between', 'under', 'over'
+  ]);
+  
+  // Tokenize text into words
+  const allWords = text
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .map(word => word.toLowerCase())
+    .filter(word => word.length > 3 && !stopWords.has(word));
+  
+  // Count word frequencies
+  const wordFrequency: Record<string, number> = {};
+  allWords.forEach(word => {
+    wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+  });
+  
+  // Get most frequent words as key concepts
+  const keyConcepts = Object.entries(wordFrequency)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(entry => entry[0]);
+  
+  // Identify potential pairs of related concepts
+  const conceptPairs: [string, string][] = [];
+  for (let i = 0; i < keyConcepts.length; i++) {
+    for (let j = i + 1; j < keyConcepts.length; j++) {
+      // Check if these concepts appear near each other in the text
+      const pattern = new RegExp(`\\b${keyConcepts[i]}\\b.{0,100}\\b${keyConcepts[j]}\\b|\\b${keyConcepts[j]}\\b.{0,100}\\b${keyConcepts[i]}\\b`, 'i');
+      if (pattern.test(text)) {
+        conceptPairs.push([keyConcepts[i], keyConcepts[j]]);
+      }
+      
+      if (conceptPairs.length >= 10) break;
+    }
+    if (conceptPairs.length >= 10) break;
+  }
+  
+  if (type === 'mcq') {
+    // Generate MCQ conceptual questions
+    for (let i = 0; i < Math.min(count, keyConcepts.length); i++) {
+      const concept = keyConcepts[i];
+      
+      // Question templates focusing on different cognitive levels
+      const questionTemplates = [
+        // Comprehension
+        `What is the main role of "${concept}" according to the document?`,
+        // Application
+        `How would "${concept}" be applied in a practical context?`,
+        // Analysis
+        `What is the relationship between "${concept}" and other key elements in the document?`,
+        // Synthesis (higher level)
+        `How does "${concept}" contribute to the overall framework presented in the document?`,
+        // Evaluation (higher level)
+        `What is the significance of "${concept}" in the context of the document?`
+      ];
+      
+      const questionText = questionTemplates[i % questionTemplates.length];
+      
+      // Create plausible options
+      const correctAnswer = `${concept} is a central component that influences the main topics discussed`;
+      
+      // Create wrong answers using other key concepts
+      const wrongOptions = keyConcepts
+        .filter(c => c !== concept)
+        .slice(0, 3)
+        .map((otherConcept, idx) => {
+          const templates = [
+            `${concept} is unrelated to the main topic and is only mentioned in passing`,
+            `${concept} contradicts the principles outlined in relation to ${otherConcept}`,
+            `${concept} is less important than ${otherConcept} according to the document`
+          ];
+          return templates[idx % templates.length];
+        });
+      
+      // Combine and shuffle options
+      const allOptions = [correctAnswer, ...wrongOptions];
+      for (let j = allOptions.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [allOptions[j], allOptions[k]] = [allOptions[k], allOptions[j]];
+      }
+      
+      questions.push({
+        id: i + 1,
+        question: questionText,
+        options: allOptions,
+        correctAnswer: correctAnswer,
+        type: 'mcq'
+      });
+    }
+  } else {
+    // Generate true/false conceptual questions
+    for (let i = 0; i < Math.min(count, conceptPairs.length); i++) {
+      const [concept1, concept2] = conceptPairs[i % conceptPairs.length];
+      const isTrue = Math.random() > 0.5;
+      
+      let questionText: string;
+      
+      if (isTrue) {
+        const trueTemplates = [
+          `The document establishes a connection between "${concept1}" and "${concept2}".`,
+          `According to the document, "${concept1}" and "${concept2}" are related concepts.`,
+          `The principles of "${concept1}" influence how "${concept2}" is understood in the document.`,
+          `Understanding "${concept1}" helps in comprehending the role of "${concept2}" in this context.`
+        ];
+        
+        questionText = trueTemplates[i % trueTemplates.length];
+      } else {
+        const falseTemplates = [
+          `The document explicitly states that "${concept1}" and "${concept2}" are opposing concepts.`,
+          `According to the document, "${concept1}" completely contradicts the principles of "${concept2}".`,
+          `The document presents "${concept1}" as a replacement for "${concept2}" in all contexts.`,
+          `"${concept1}" and "${concept2}" are presented as mutually exclusive approaches in the document.`
+        ];
+        
+        questionText = falseTemplates[i % falseTemplates.length];
+      }
+      
+      questions.push({
+        id: i + 1,
+        question: questionText,
+        options: ["True", "False"],
+        correctAnswer: isTrue ? "True" : "False",
+        type: 'truefalse'
+      });
+    }
+  }
+  
+  return questions;
 };
 
 // Helper function to get opposites or unrelated terms for false statements
