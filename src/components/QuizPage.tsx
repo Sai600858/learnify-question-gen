@@ -38,6 +38,7 @@ const QuizPage: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
+        // Fix TypeScript error by explicitly returning a number
         if (prev <= 1) {
           clearInterval(timer);
           // Time's up - calculate score and move to results
