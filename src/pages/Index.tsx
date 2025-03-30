@@ -16,70 +16,70 @@ const llmQuizQuestions = [
     question: "What does the acronym 'LLM' stand for in AI technology?",
     options: ["Large Learning Machine", "Language Learning Model", "Large Language Model", "Logical Language Machine"],
     correctAnswer: "Large Language Model",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 2,
     question: "Large Language Models are primarily trained to:",
     options: ["Only translate between languages", "Predict the next word in a sequence", "Only generate computer code", "Create images from text"],
     correctAnswer: "Predict the next word in a sequence",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 3,
     question: "Which of the following is an application of Large Language Models?",
     options: ["Autonomous vehicle navigation", "Virtual assistants and chatbots", "Protein structure prediction", "Weather forecasting"],
     correctAnswer: "Virtual assistants and chatbots",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 4,
     question: "The training process of LLMs typically involves:",
     options: ["Supervised learning on small datasets", "Reinforcement learning only", "Self-supervised learning on massive text corpora", "Learning only from visual data"],
     correctAnswer: "Self-supervised learning on massive text corpora",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 5,
     question: "What is 'prompt engineering' in the context of LLMs?",
     options: ["Building faster computer hardware", "Designing effective instructions to get desired outputs from an LLM", "Creating new programming languages", "The process of training an LLM"],
     correctAnswer: "Designing effective instructions to get desired outputs from an LLM",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 6,
     question: "LLMs generate text by predicting the most likely next token based on previous tokens.",
     options: ["True", "False"],
     correctAnswer: "True",
-    type: "truefalse"
+    type: "truefalse" as const
   },
   {
     id: 7,
     question: "Which of these is an example of a Large Language Model?",
     options: ["Microsoft Excel", "Photoshop", "GPT-4", "Linux Operating System"],
     correctAnswer: "GPT-4",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 8,
     question: "How might LLMs be applied in education?",
     options: ["Replacing teachers entirely", "Generating personalized learning materials", "Grading physical handwriting only", "Managing school building facilities"],
     correctAnswer: "Generating personalized learning materials",
-    type: "mcq"
+    type: "mcq" as const
   },
   {
     id: 9,
     question: "LLMs can understand the meaning of text in the same way humans do.",
     options: ["True", "False"],
     correctAnswer: "False",
-    type: "truefalse"
+    type: "truefalse" as const
   },
   {
     id: 10,
     question: "What is a limitation of current Large Language Models?",
     options: ["They can only process text in English", "They sometimes generate incorrect or misleading information", "They cannot be used on personal computers", "They can only generate short responses"],
     correctAnswer: "They sometimes generate incorrect or misleading information",
-    type: "mcq"
+    type: "mcq" as const
   }
 ];
 

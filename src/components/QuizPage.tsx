@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -32,7 +32,7 @@ const QuizPage: React.FC = () => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  // Timer logic - removed timeRemaining from dependency array to avoid infinite loop
+  // Timer logic with proper setState function type
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeRemaining((prevTime) => {
@@ -47,9 +47,10 @@ const QuizPage: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []); // Removed timeRemaining from dependency array
+  }, []);
 
-  const finishQuiz = () => {
+  // Finishing quiz function extracted to avoid dependency issues
+  const finishQuiz = useCallback(() => {
     // Calculate final score
     const finalScore = calculateScore(questions, answers);
     setScore(finalScore);
@@ -63,7 +64,7 @@ const QuizPage: React.FC = () => {
     
     // Go to results page
     setCurrentStep(4);
-  };
+  }, [questions, answers, setScore, toast, timeRemaining, totalQuestions, setCurrentStep]);
 
   const handleAnswer = (value: string) => {
     setAnswers({
