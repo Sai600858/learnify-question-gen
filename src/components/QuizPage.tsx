@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,20 +36,23 @@ const QuizPage: React.FC = () => {
   // Timer logic
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        // If time's up, clear interval and move to results
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Time's up - calculate score and move to results
-          finishQuiz();
-          return 0;
-        }
-        return prev - 1;
-      });
+      // Store current time value to use in the conditional check
+      const currentTime = timeRemaining;
+      
+      // If time's up, clear interval and move to results
+      if (currentTime <= 1) {
+        clearInterval(timer);
+        // Time's up - calculate score and move to results
+        finishQuiz();
+        setTimeRemaining(0); // Set to exactly zero
+      } else {
+        // Otherwise decrement the time by 1
+        setTimeRemaining(currentTime - 1);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [timeRemaining]);
 
   const finishQuiz = () => {
     // Calculate final score
