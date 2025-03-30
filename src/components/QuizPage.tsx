@@ -6,8 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useQuiz } from '@/context/QuizContext';
 import { calculateScore } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
-import { Timer, Clock } from 'lucide-react';
-import { Progress } from "@/components/ui/progress";
+import { Clock } from 'lucide-react';
 
 const QuizPage: React.FC = () => {
   const { 
@@ -33,26 +32,22 @@ const QuizPage: React.FC = () => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  // Timer logic
+  // Timer logic - removed timeRemaining from dependency array to avoid infinite loop
   useEffect(() => {
     const timer = setInterval(() => {
-      // Store current time value to use in the conditional check
-      const currentTime = timeRemaining;
-      
-      // If time's up, clear interval and move to results
-      if (currentTime <= 1) {
-        clearInterval(timer);
-        // Time's up - calculate score and move to results
-        finishQuiz();
-        setTimeRemaining(0); // Set to exactly zero
-      } else {
-        // Otherwise decrement the time by 1
-        setTimeRemaining(currentTime - 1);
-      }
+      setTimeRemaining((prevTime) => {
+        if (prevTime <= 1) {
+          clearInterval(timer);
+          // Time's up - calculate score and move to results
+          finishQuiz();
+          return 0;
+        }
+        return prevTime - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, []); // Removed timeRemaining from dependency array
 
   const finishQuiz = () => {
     // Calculate final score
@@ -95,11 +90,11 @@ const QuizPage: React.FC = () => {
   const currentAnswer = answers[question?.id] || '';
 
   // Time warning colors
-  const getTimeColor = () => {
+  function getTimeColor() {
     if (timeRemaining < 60) return "text-destructive"; // Less than 1 minute
     if (timeRemaining < 180) return "text-amber-500"; // Less than 3 minutes
     return "text-primary";
-  };
+  }
 
   if (!question) {
     return (
