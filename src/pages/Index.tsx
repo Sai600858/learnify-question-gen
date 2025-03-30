@@ -41,7 +41,7 @@ const QuizApp: React.FC = () => {
       </main>
       
       <footer className="container mx-auto py-6 text-center text-sm text-muted-foreground">
-        <p>© 2023 Learnify Quiz Generator. All rights reserved.</p>
+        <p>© 2025 Learnify Quiz Generator. All rights reserved.</p>
       </footer>
     </div>
   );

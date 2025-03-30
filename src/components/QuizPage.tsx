@@ -52,7 +52,7 @@ const QuizPage: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining]);
+  }, []);
 
   const finishQuiz = () => {
     // Calculate final score
