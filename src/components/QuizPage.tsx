@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useQuiz } from '@/context/QuizContext';
 import { calculateScore } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
-import { Clock } from 'lucide-react';
+import { Timer, Clock } from 'lucide-react';
+import { Progress } from "@/components/ui/progress";
 
 const QuizPage: React.FC = () => {
   const { 
@@ -32,25 +33,28 @@ const QuizPage: React.FC = () => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  // Timer logic with proper setState function type
+  // Timer logic
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeRemaining((prevTime) => {
-        if (prevTime <= 1) {
-          clearInterval(timer);
-          // Time's up - calculate score and move to results
-          finishQuiz();
-          return 0;
-        }
-        return prevTime - 1;
-      });
+      // Store current time value to use in the conditional check
+      const currentTime = timeRemaining;
+      
+      // If time's up, clear interval and move to results
+      if (currentTime <= 1) {
+        clearInterval(timer);
+        // Time's up - calculate score and move to results
+        finishQuiz();
+        setTimeRemaining(0); // Set to exactly zero
+      } else {
+        // Otherwise decrement the time by 1
+        setTimeRemaining(currentTime - 1);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Finishing quiz function extracted to avoid dependency issues
-  const finishQuiz = useCallback(() => {
+  const finishQuiz = () => {
     // Calculate final score
     const finalScore = calculateScore(questions, answers);
     setScore(finalScore);
@@ -64,7 +68,7 @@ const QuizPage: React.FC = () => {
     
     // Go to results page
     setCurrentStep(4);
-  }, [questions, answers, setScore, toast, timeRemaining, totalQuestions, setCurrentStep]);
+  };
 
   const handleAnswer = (value: string) => {
     setAnswers({
@@ -91,11 +95,11 @@ const QuizPage: React.FC = () => {
   const currentAnswer = answers[question?.id] || '';
 
   // Time warning colors
-  function getTimeColor() {
+  const getTimeColor = () => {
     if (timeRemaining < 60) return "text-destructive"; // Less than 1 minute
     if (timeRemaining < 180) return "text-amber-500"; // Less than 3 minutes
     return "text-primary";
-  }
+  };
 
   if (!question) {
     return (
