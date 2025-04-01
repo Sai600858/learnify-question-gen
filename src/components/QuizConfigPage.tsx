@@ -102,12 +102,16 @@ const QuizConfigPage: React.FC = () => {
               <Label className="text-sm font-medium">Question Type</Label>
               <RadioGroup 
                 value={questionType} 
-                onValueChange={(value) => setQuestionType(value as 'mcq' | 'truefalse')}
+                onValueChange={(value) => setQuestionType(value as 'mcq' | 'truefalse' | 'multiselect')}
                 className="flex flex-col space-y-2"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="mcq" id="mcq" />
                   <Label htmlFor="mcq">Multiple Choice Questions</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="multiselect" id="multiselect" />
+                  <Label htmlFor="multiselect">Multi-Select Questions</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="truefalse" id="truefalse" />

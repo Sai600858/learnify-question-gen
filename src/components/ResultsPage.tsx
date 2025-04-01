@@ -18,7 +18,26 @@ const ResultsPage: React.FC = () => {
   const { toast } = useToast();
   const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
 
-  const correctAnswers = questions.filter(q => answers[q.id] === q.correctAnswer).length;
+  const correctAnswers = questions.filter(q => {
+    const userAnswer = answers[q.id];
+    const correctAnswer = q.correctAnswer;
+    
+    if (q.type === 'multiselect') {
+      // For multi-select, compare arrays
+      const userArray = userAnswer as string[] || [];
+      const correctArray = correctAnswer as string[];
+      
+      if (userArray.length !== correctArray.length) return false;
+      
+      // Check if all correct options are selected and no incorrect ones
+      return correctArray.every(opt => userArray.includes(opt)) && 
+             userArray.every(opt => correctArray.includes(opt));
+    }
+    
+    // For single-select questions
+    return userAnswer === correctAnswer;
+  }).length;
+  
   const totalQuestions = questions.length;
   
   // Function to determine score color
@@ -71,6 +90,47 @@ const ResultsPage: React.FC = () => {
     }
   };
 
+  // Check if an answer is correct
+  const isAnswerCorrect = (question: any, index: number) => {
+    const userAnswer = answers[question.id];
+    const correctAnswer = question.correctAnswer;
+    
+    if (question.type === 'multiselect') {
+      const userAnswers = userAnswer as string[] || [];
+      const correctAnswers = correctAnswer as string[];
+      
+      const option = question.options[index];
+      const isCorrectOption = correctAnswers.includes(option);
+      const isSelected = userAnswers.includes(option);
+      
+      // Correct if: user selected a correct option OR user didn't select an incorrect option
+      return (isSelected && isCorrectOption) || (!isSelected && !isCorrectOption);
+    }
+    
+    // For single-select questions
+    return userAnswer === correctAnswer;
+  };
+
+  // Check if an option was selected by the user
+  const wasOptionSelected = (question: any, option: string) => {
+    const userAnswer = answers[question.id];
+    
+    if (question.type === 'multiselect') {
+      return Array.isArray(userAnswer) && userAnswer.includes(option);
+    }
+    
+    return userAnswer === option;
+  };
+
+  // Check if an option is a correct answer
+  const isCorrectOption = (question: any, option: string) => {
+    if (question.type === 'multiselect') {
+      return Array.isArray(question.correctAnswer) && question.correctAnswer.includes(option);
+    }
+    
+    return question.correctAnswer === option;
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <Card className="w-full max-w-md responsive-card">
@@ -119,8 +179,21 @@ const ResultsPage: React.FC = () => {
             <h3 className="font-medium">Question Breakdown</h3>
             <div className="space-y-3">
               {questions.map((question, index) => {
-                const isCorrect = answers[question.id] === question.correctAnswer;
+                const userAnswer = answers[question.id];
+                let isCorrect = false;
+                
+                if (question.type === 'multiselect') {
+                  const userArray = userAnswer as string[] || [];
+                  const correctArray = question.correctAnswer as string[];
+                  
+                  isCorrect = correctArray.every(opt => userArray.includes(opt)) && 
+                             userArray.every(opt => correctArray.includes(opt));
+                } else {
+                  isCorrect = userAnswer === question.correctAnswer;
+                }
+                
                 const isExpanded = expandedQuestions.includes(question.id);
+                
                 return (
                   <div key={index} className="border border-muted rounded-lg overflow-hidden">
                     <div 
@@ -140,23 +213,43 @@ const ResultsPage: React.FC = () => {
                       <div className="p-3 border-t border-muted bg-background/50 text-sm">
                         <p className="font-medium mb-2">{question.question}</p>
                         <div className="space-y-1">
-                          {question.options.map((option, optIndex) => (
-                            <div 
-                              key={optIndex} 
-                              className={`p-2 rounded ${
-                                option === question.correctAnswer 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : option === answers[question.id] && option !== question.correctAnswer
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-muted/30'
-                              }`}
-                            >
-                              {option}
-                              {option === question.correctAnswer && option !== answers[question.id] && 
-                                <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
+                          {question.options.map((option, optIndex) => {
+                            const isSelected = wasOptionSelected(question, option);
+                            const isCorrectOpt = isCorrectOption(question, option);
+                            
+                            let bgClass = 'bg-muted/30';
+                            
+                            if (question.type === 'multiselect') {
+                              if (isSelected && isCorrectOpt) {
+                                bgClass = 'bg-green-100 text-green-800'; // Correct selection
+                              } else if (isSelected && !isCorrectOpt) {
+                                bgClass = 'bg-red-100 text-red-800'; // Wrong selection
+                              } else if (!isSelected && isCorrectOpt) {
+                                bgClass = 'bg-yellow-100 text-yellow-800'; // Missed correct answer
                               }
-                            </div>
-                          ))}
+                            } else {
+                              if (option === question.correctAnswer) {
+                                bgClass = 'bg-green-100 text-green-800';
+                              } else if (option === userAnswer && option !== question.correctAnswer) {
+                                bgClass = 'bg-red-100 text-red-800';
+                              }
+                            }
+                            
+                            return (
+                              <div 
+                                key={optIndex} 
+                                className={`p-2 rounded ${bgClass}`}
+                              >
+                                {option}
+                                {question.type === 'multiselect' && isCorrectOpt && !isSelected && 
+                                  <span className="ml-2 font-medium text-green-600">(Correct option)</span>
+                                }
+                                {!question.type.includes('multi') && option === question.correctAnswer && option !== userAnswer && 
+                                  <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
+                                }
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

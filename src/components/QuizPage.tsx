@@ -1,12 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useQuiz } from '@/context/QuizContext';
 import { calculateScore } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
-import { Timer, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 
 const QuizPage: React.FC = () => {
@@ -52,7 +54,7 @@ const QuizPage: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [timeRemaining]);
 
   const finishQuiz = () => {
     // Calculate final score
@@ -70,10 +72,28 @@ const QuizPage: React.FC = () => {
     setCurrentStep(4);
   };
 
-  const handleAnswer = (value: string) => {
+  const handleSingleAnswer = (value: string) => {
     setAnswers({
       ...answers,
       [question.id]: value
+    });
+  };
+
+  const handleMultiAnswer = (option: string, checked: boolean) => {
+    const currentAnswers = (answers[question.id] as string[]) || [];
+    let newAnswers: string[];
+    
+    if (checked) {
+      // Add the option if it's checked and not already in the array
+      newAnswers = [...currentAnswers, option];
+    } else {
+      // Remove the option if it's unchecked
+      newAnswers = currentAnswers.filter(ans => ans !== option);
+    }
+    
+    setAnswers({
+      ...answers,
+      [question.id]: newAnswers
     });
   };
 
@@ -92,13 +112,32 @@ const QuizPage: React.FC = () => {
   };
 
   const isLastQuestion = currentQuestion === totalQuestions - 1;
-  const currentAnswer = answers[question?.id] || '';
+  const currentAnswer = answers[question?.id] || (question?.type === 'multiselect' ? [] : '');
+
+  // Check if current question has any answer (for enabling Next button)
+  const hasAnswer = () => {
+    if (!question) return false;
+    
+    if (question.type === 'multiselect') {
+      return Array.isArray(currentAnswer) && currentAnswer.length > 0;
+    }
+    
+    return currentAnswer !== '';
+  };
 
   // Time warning colors
   const getTimeColor = () => {
     if (timeRemaining < 60) return "text-destructive"; // Less than 1 minute
     if (timeRemaining < 180) return "text-amber-500"; // Less than 3 minutes
     return "text-primary";
+  };
+
+  // Check if an option is selected in a multi-select question
+  const isOptionSelected = (option: string) => {
+    if (question?.type === 'multiselect') {
+      return Array.isArray(currentAnswer) && currentAnswer.includes(option);
+    }
+    return false;
   };
 
   if (!question) {
@@ -146,10 +185,10 @@ const QuizPage: React.FC = () => {
             {question.question}
           </CardTitle>
           
-          {question.type === 'mcq' ? (
+          {question.type === 'mcq' && (
             <RadioGroup 
-              value={currentAnswer} 
-              onValueChange={handleAnswer}
+              value={currentAnswer as string} 
+              onValueChange={handleSingleAnswer}
               className="space-y-3"
             >
               {question.options.map((option, index) => (
@@ -164,10 +203,32 @@ const QuizPage: React.FC = () => {
                 </div>
               ))}
             </RadioGroup>
-          ) : (
+          )}
+          
+          {question.type === 'multiselect' && (
+            <div className="space-y-3">
+              {question.options.map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`option-ms-${index}`}
+                    checked={isOptionSelected(option)}
+                    onCheckedChange={(checked) => handleMultiAnswer(option, checked as boolean)}
+                  />
+                  <Label 
+                    htmlFor={`option-ms-${index}`} 
+                    className="flex-1 py-2 cursor-pointer"
+                  >
+                    {option}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {question.type === 'truefalse' && (
             <RadioGroup 
-              value={currentAnswer} 
-              onValueChange={handleAnswer}
+              value={currentAnswer as string} 
+              onValueChange={handleSingleAnswer}
               className="space-y-3"
             >
               <div className="flex items-center space-x-2">
@@ -193,7 +254,7 @@ const QuizPage: React.FC = () => {
           
           <Button 
             onClick={handleNext}
-            disabled={!currentAnswer}
+            disabled={!hasAnswer()}
           >
             {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
           </Button>
