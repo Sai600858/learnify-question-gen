@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type QuestionType = 'mcq' | 'truefalse' | 'multiselect';
+export type QuestionType = 'mcq' | 'truefalse';
 
 export interface QuizContextType {
   name: string;
@@ -16,8 +16,8 @@ export interface QuizContextType {
   setQuestions: (questions: Question[]) => void;
   currentStep: number;
   setCurrentStep: (step: number) => void;
-  answers: Record<number, string | string[]>;
-  setAnswers: (answers: Record<number, string | string[]>) => void;
+  answers: Record<number, string>;
+  setAnswers: (answers: Record<number, string>) => void;
   score: number;
   setScore: (score: number) => void;
   isLoading: boolean;
@@ -34,7 +34,7 @@ export interface Question {
   id: number;
   question: string;
   options: string[];
-  correctAnswer: string | string[];
+  correctAnswer: string;
   type: QuestionType;
 }
 
@@ -47,7 +47,7 @@ export const QuizProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [questionCount, setQuestionCount] = useState(5);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [questionType, setQuestionType] = useState<QuestionType>('mcq');

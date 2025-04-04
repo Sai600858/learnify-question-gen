@@ -1,3 +1,4 @@
+
 import { Question, QuestionType } from '../context/QuizContext';
 
 // Enhanced document analysis and LLM-inspired question generation
@@ -701,6 +702,7 @@ const getOppositeOrUnrelated = (word: string): string => {
     'effective': 'ineffective',
     'advantage': 'disadvantage',
     'benefit': 'drawback',
+    'increase': 'decrease',
     'enhance': 'diminish',
     'improve': 'worsen',
     'support': 'oppose',
@@ -1034,25 +1036,12 @@ export const readFileContent = (file: File): Promise<string> => {
 };
 
 // Helper function to calculate score
-export const calculateScore = (questions: Question[], answers: Record<number, string | string[]>): number => {
+export const calculateScore = (questions: Question[], answers: Record<number, string>): number => {
   let correctCount = 0;
   
   questions.forEach(question => {
-    if (question.type === 'multiselect') {
-      const userAnswers = answers[question.id] as string[] || [];
-      const correctAnswers = question.correctAnswer as string[];
-      
-      // For multi-select, all options must match exactly
-      if (userAnswers.length === correctAnswers.length &&
-          correctAnswers.every(opt => userAnswers.includes(opt)) &&
-          userAnswers.every(opt => correctAnswers.includes(opt))) {
-        correctCount++;
-      }
-    } else {
-      // For single-select questions
-      if (answers[question.id] === question.correctAnswer) {
-        correctCount++;
-      }
+    if (answers[question.id] === question.correctAnswer) {
+      correctCount++;
     }
   });
   
@@ -1064,7 +1053,7 @@ export const generateResultReport = (
   name: string, 
   score: number, 
   questions: Question[], 
-  answers: Record<number, string | string[]>
+  answers: Record<number, string>
 ): string => {
   const date = new Date().toLocaleDateString();
   
@@ -1075,24 +1064,9 @@ export const generateResultReport = (
   
   questions.forEach((question, index) => {
     report += `${index + 1}. ${question.question}\n`;
-    
-    if (question.type === 'multiselect') {
-      const userAnswers = answers[question.id] as string[] || [];
-      const correctAnswers = question.correctAnswer as string[];
-      
-      report += `Your answers: ${userAnswers.join(', ') || 'Not answered'}\n`;
-      report += `Correct answers: ${correctAnswers.join(', ')}\n`;
-      
-      const isCorrect = userAnswers.length === correctAnswers.length &&
-                        correctAnswers.every(opt => userAnswers.includes(opt)) &&
-                        userAnswers.every(opt => correctAnswers.includes(opt));
-      
-      report += `Result: ${isCorrect ? 'Correct' : 'Incorrect'}\n\n`;
-    } else {
-      report += `Your answer: ${answers[question.id] || 'Not answered'}\n`;
-      report += `Correct answer: ${question.correctAnswer}\n`;
-      report += `Result: ${(answers[question.id] === question.correctAnswer) ? 'Correct' : 'Incorrect'}\n\n`;
-    }
+    report += `Your answer: ${answers[question.id] || 'Not answered'}\n`;
+    report += `Correct answer: ${question.correctAnswer}\n`;
+    report += `Result: ${(answers[question.id] === question.correctAnswer) ? 'Correct' : 'Incorrect'}\n\n`;
   });
   
   report += `Thank you for using Learnify Quiz Generator!`;

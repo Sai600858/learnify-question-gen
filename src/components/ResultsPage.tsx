@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,8 +6,6 @@ import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell } from 'recharts';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -19,37 +18,17 @@ const ResultsPage: React.FC = () => {
   const { toast } = useToast();
   const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
 
-  const correctAnswers = questions.filter(q => {
-    const userAnswer = answers[q.id];
-    const correctAnswer = q.correctAnswer;
-    
-    if (q.type === 'multiselect') {
-      const userArray = userAnswer as string[] || [];
-      const correctArray = correctAnswer as string[];
-      
-      if (userArray.length !== correctArray.length) return false;
-      
-      return correctArray.every(opt => userArray.includes(opt)) && 
-             userArray.every(opt => correctArray.includes(opt));
-    }
-    
-    return userAnswer === correctAnswer;
-  }).length;
-  
+  const correctAnswers = questions.filter(q => answers[q.id] === q.correctAnswer).length;
   const totalQuestions = questions.length;
-  const incorrectAnswers = totalQuestions - correctAnswers;
   
-  const chartData = [
-    { name: 'Correct', value: correctAnswers, color: '#10b981' },
-    { name: 'Incorrect', value: incorrectAnswers, color: '#ef4444' }
-  ];
-  
+  // Function to determine score color
   const getScoreColor = () => {
     if (score >= 80) return 'text-green-500';
     if (score >= 60) return 'text-yellow-500';
     return 'text-red-500';
   };
 
+  // Function to get feedback based on score
   const getFeedback = () => {
     if (score >= 90) return "Excellent! You have a great understanding of the material.";
     if (score >= 80) return "Great job! You know the material well.";
@@ -59,6 +38,7 @@ const ResultsPage: React.FC = () => {
     return "You might need to review the material again.";
   };
 
+  // Download the results as a text file
   const downloadResults = () => {
     const report = generateResultReport(name, score, questions, answers);
     const blob = new Blob([report], { type: 'text/plain' });
@@ -77,10 +57,12 @@ const ResultsPage: React.FC = () => {
     });
   };
 
+  // Start a new quiz with the same user
   const startNewQuiz = () => {
     setCurrentStep(1); // Go back to file upload page
   };
 
+  // Toggle question details visibility
   const toggleQuestionDetails = (questionId: number) => {
     if (expandedQuestions.includes(questionId)) {
       setExpandedQuestions(expandedQuestions.filter(id => id !== questionId));
@@ -88,54 +70,6 @@ const ResultsPage: React.FC = () => {
       setExpandedQuestions([...expandedQuestions, questionId]);
     }
   };
-
-  const isAnswerCorrect = (question: any, index: number) => {
-    const userAnswer = answers[question.id];
-    const correctAnswer = question.correctAnswer;
-    
-    if (question.type === 'multiselect') {
-      const userAnswers = userAnswer as string[] || [];
-      const correctAnswers = correctAnswer as string[];
-      
-      const option = question.options[index];
-      const isCorrectOption = correctAnswers.includes(option);
-      const isSelected = userAnswers.includes(option);
-      
-      return (isSelected && isCorrectOption) || (!isSelected && !isCorrectOption);
-    }
-    
-    return userAnswer === correctAnswer;
-  };
-
-  const wasOptionSelected = (question: any, option: string) => {
-    const userAnswer = answers[question.id];
-    
-    if (question.type === 'multiselect') {
-      return Array.isArray(userAnswer) && userAnswer.includes(option);
-    }
-    
-    return userAnswer === option;
-  };
-
-  const isCorrectOption = (question: any, option: string) => {
-    if (question.type === 'multiselect') {
-      return Array.isArray(question.correctAnswer) && question.correctAnswer.includes(option);
-    }
-    
-    return question.correctAnswer === option;
-  };
-  
-  const calculateAIAccuracy = () => {
-    const aiAccuracyScore = Math.min(85 + Math.floor(Math.random() * 10), 100);
-    return aiAccuracyScore;
-  };
-  
-  const aiAccuracy = calculateAIAccuracy();
-  
-  const aiAccuracyData = [
-    { name: 'Accurate', value: aiAccuracy, color: '#3b82f6' },
-    { name: 'Inaccurate', value: 100 - aiAccuracy, color: '#d1d5db' }
-  ];
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
@@ -180,99 +114,13 @@ const ResultsPage: React.FC = () => {
               {getFeedback()}
             </p>
           </div>
-
-          <div className="space-y-4">
-            <h3 className="font-medium text-center">Performance Analysis</h3>
-            <div className="h-72">
-              <ChartContainer 
-                config={{
-                  correct: { color: '#10b981', label: 'Correct' },
-                  incorrect: { color: '#ef4444', label: 'Incorrect' },
-                }}
-                className="h-full"
-              >
-                {({ width, height }) => (
-                  <PieChart width={width} height={height}>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      innerRadius={40}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                )}
-              </ChartContainer>
-            </div>
-            
-            <div className="mt-6 space-y-2">
-              <h3 className="font-medium text-center">AI Question Generation Accuracy</h3>
-              <div className="h-72">
-                <ChartContainer 
-                  config={{
-                    accurate: { color: '#3b82f6', label: 'Accurate' },
-                    inaccurate: { color: '#d1d5db', label: 'Inaccurate' },
-                  }}
-                  className="h-full"
-                >
-                  {({ width, height }) => (
-                    <PieChart width={width} height={height}>
-                      <Pie
-                        data={aiAccuracyData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        innerRadius={40}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {aiAccuracyData.map((entry, index) => (
-                          <Cell key={`ai-cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  )}
-                </ChartContainer>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                This chart represents how accurately the AI generated contextually relevant questions based on the document content.
-              </p>
-            </div>
-          </div>
           
           <div className="bg-secondary p-4 rounded-lg space-y-3">
             <h3 className="font-medium">Question Breakdown</h3>
             <div className="space-y-3">
               {questions.map((question, index) => {
-                const userAnswer = answers[question.id];
-                let isCorrect = false;
-                
-                if (question.type === 'multiselect') {
-                  const userArray = userAnswer as string[] || [];
-                  const correctArray = question.correctAnswer as string[];
-                  
-                  isCorrect = correctArray.every(opt => userArray.includes(opt)) && 
-                             userArray.every(opt => correctArray.includes(opt));
-                } else {
-                  isCorrect = userAnswer === question.correctAnswer;
-                }
-                
+                const isCorrect = answers[question.id] === question.correctAnswer;
                 const isExpanded = expandedQuestions.includes(question.id);
-                
                 return (
                   <div key={index} className="border border-muted rounded-lg overflow-hidden">
                     <div 
@@ -292,43 +140,23 @@ const ResultsPage: React.FC = () => {
                       <div className="p-3 border-t border-muted bg-background/50 text-sm">
                         <p className="font-medium mb-2">{question.question}</p>
                         <div className="space-y-1">
-                          {question.options.map((option, optIndex) => {
-                            const isSelected = wasOptionSelected(question, option);
-                            const isCorrectOpt = isCorrectOption(question, option);
-                            
-                            let bgClass = 'bg-muted/30';
-                            
-                            if (question.type === 'multiselect') {
-                              if (isSelected && isCorrectOpt) {
-                                bgClass = 'bg-green-100 text-green-800';
-                              } else if (isSelected && !isCorrectOpt) {
-                                bgClass = 'bg-red-100 text-red-800';
-                              } else if (!isSelected && isCorrectOpt) {
-                                bgClass = 'bg-yellow-100 text-yellow-800';
+                          {question.options.map((option, optIndex) => (
+                            <div 
+                              key={optIndex} 
+                              className={`p-2 rounded ${
+                                option === question.correctAnswer 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : option === answers[question.id] && option !== question.correctAnswer
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-muted/30'
+                              }`}
+                            >
+                              {option}
+                              {option === question.correctAnswer && option !== answers[question.id] && 
+                                <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
                               }
-                            } else {
-                              if (option === question.correctAnswer) {
-                                bgClass = 'bg-green-100 text-green-800';
-                              } else if (option === userAnswer && option !== question.correctAnswer) {
-                                bgClass = 'bg-red-100 text-red-800';
-                              }
-                            }
-                            
-                            return (
-                              <div 
-                                key={optIndex} 
-                                className={`p-2 rounded ${bgClass}`}
-                              >
-                                {option}
-                                {question.type === 'multiselect' && isCorrectOpt && !isSelected && 
-                                  <span className="ml-2 font-medium text-green-600">(Correct option)</span>
-                                }
-                                {!question.type.includes('multi') && option === question.correctAnswer && option !== userAnswer && 
-                                  <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
-                                }
-                              </div>
-                            );
-                          })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
