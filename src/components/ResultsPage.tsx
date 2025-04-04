@@ -6,6 +6,8 @@ import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -39,7 +41,88 @@ const ResultsPage: React.FC = () => {
   }).length;
   
   const totalQuestions = questions.length;
+  const incorrectAnswers = totalQuestions - correctAnswers;
   
+  // Calculate BLEU-like score (Bilingual Evaluation Understudy)
+  // This is a simplified version just for demonstration purposes
+  const calculateBLEUScore = () => {
+    let matchCount = 0;
+    let totalCount = 0;
+    
+    questions.forEach(q => {
+      const userAnswer = answers[q.id];
+      
+      if (q.type === 'multiselect') {
+        const userArray = userAnswer as string[] || [];
+        const correctArray = q.correctAnswer as string[];
+        
+        // Count matching selections
+        correctArray.forEach(opt => {
+          totalCount++;
+          if (userArray.includes(opt)) matchCount++;
+        });
+        
+        // Penalize for incorrect selections
+        userArray.forEach(opt => {
+          if (!correctArray.includes(opt)) matchCount--;
+        });
+      } else {
+        totalCount++;
+        if (userAnswer === q.correctAnswer) matchCount++;
+      }
+    });
+    
+    // Normalize to 0-100 scale with a floor of 0
+    return Math.max(0, Math.round((matchCount / totalCount) * 100));
+  };
+  
+  const bleuScore = calculateBLEUScore();
+  
+  // Chart data
+  const chartData = [
+    { name: 'Correct', value: correctAnswers, color: '#10b981' },
+    { name: 'Incorrect', value: incorrectAnswers, color: '#ef4444' }
+  ];
+  
+  // Calculate reference score (more detailed scoring that considers partial credit)
+  const calculateReferenceScore = () => {
+    let totalPoints = 0;
+    let earnedPoints = 0;
+    
+    questions.forEach(q => {
+      const userAnswer = answers[q.id];
+      
+      if (q.type === 'multiselect') {
+        const userArray = userAnswer as string[] || [];
+        const correctArray = q.correctAnswer as string[];
+        
+        // Each correct option is worth an equal portion of the question's point
+        const pointPerOption = 1 / correctArray.length;
+        
+        // Award points for each correct selection
+        correctArray.forEach(opt => {
+          totalPoints += pointPerOption;
+          if (userArray.includes(opt)) earnedPoints += pointPerOption;
+        });
+        
+        // Penalty for incorrect selections, but don't go below 0 for this question
+        let questionPoints = 0;
+        userArray.forEach(opt => {
+          if (!correctArray.includes(opt)) questionPoints -= pointPerOption;
+        });
+        
+        earnedPoints += Math.max(0, questionPoints);
+      } else {
+        totalPoints += 1;
+        if (userAnswer === q.correctAnswer) earnedPoints += 1;
+      }
+    });
+    
+    return Math.round((earnedPoints / totalPoints) * 100);
+  };
+  
+  const referenceScore = calculateReferenceScore();
+
   // Function to determine score color
   const getScoreColor = () => {
     if (score >= 80) return 'text-green-500';
@@ -173,6 +256,61 @@ const ResultsPage: React.FC = () => {
             <p className="text-center text-muted-foreground">
               {getFeedback()}
             </p>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-medium text-center">Performance Analysis</h3>
+            <div className="h-72">
+              <ChartContainer 
+                config={{
+                  correct: { color: '#10b981', label: 'Correct' },
+                  incorrect: { color: '#ef4444', label: 'Incorrect' },
+                }}
+                className="h-full"
+              >
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    innerRadius={40}
+                    fill="#8884d8"
+                    dataKey="value"
+                    nameKey="name"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />} 
+                  />
+                </PieChart>
+                <ChartLegend content={<ChartLegendContent />} />
+              </ChartContainer>
+            </div>
+
+            <div className="bg-secondary p-4 rounded-lg space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Bilingual Evaluation Score:</span>
+                <span className={`font-bold ${bleuScore >= 70 ? 'text-green-500' : bleuScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {bleuScore}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Reference Score:</span>
+                <span className={`font-bold ${referenceScore >= 70 ? 'text-green-500' : referenceScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {referenceScore}%
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Bilingual Evaluation Score measures the precision of your answers compared to the reference answers.
+                Reference Score provides additional context by accounting for partial correctness.
+              </p>
+            </div>
           </div>
           
           <div className="bg-secondary p-4 rounded-lg space-y-3">
