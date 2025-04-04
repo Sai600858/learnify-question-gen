@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell } from 'recharts';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -25,26 +24,21 @@ const ResultsPage: React.FC = () => {
     const correctAnswer = q.correctAnswer;
     
     if (q.type === 'multiselect') {
-      // For multi-select, compare arrays
       const userArray = userAnswer as string[] || [];
       const correctArray = correctAnswer as string[];
       
       if (userArray.length !== correctArray.length) return false;
       
-      // Check if all correct options are selected and no incorrect ones
       return correctArray.every(opt => userArray.includes(opt)) && 
              userArray.every(opt => correctArray.includes(opt));
     }
     
-    // For single-select questions
     return userAnswer === correctAnswer;
   }).length;
   
   const totalQuestions = questions.length;
   const incorrectAnswers = totalQuestions - correctAnswers;
   
-  // Calculate BLEU-like score (Bilingual Evaluation Understudy)
-  // This is a simplified version just for demonstration purposes
   const calculateBLEUScore = () => {
     let matchCount = 0;
     let totalCount = 0;
@@ -56,13 +50,11 @@ const ResultsPage: React.FC = () => {
         const userArray = userAnswer as string[] || [];
         const correctArray = q.correctAnswer as string[];
         
-        // Count matching selections
         correctArray.forEach(opt => {
           totalCount++;
           if (userArray.includes(opt)) matchCount++;
         });
         
-        // Penalize for incorrect selections
         userArray.forEach(opt => {
           if (!correctArray.includes(opt)) matchCount--;
         });
@@ -72,19 +64,16 @@ const ResultsPage: React.FC = () => {
       }
     });
     
-    // Normalize to 0-100 scale with a floor of 0
     return Math.max(0, Math.round((matchCount / totalCount) * 100));
   };
   
   const bleuScore = calculateBLEUScore();
   
-  // Chart data
   const chartData = [
     { name: 'Correct', value: correctAnswers, color: '#10b981' },
     { name: 'Incorrect', value: incorrectAnswers, color: '#ef4444' }
   ];
   
-  // Calculate reference score (more detailed scoring that considers partial credit)
   const calculateReferenceScore = () => {
     let totalPoints = 0;
     let earnedPoints = 0;
@@ -96,16 +85,13 @@ const ResultsPage: React.FC = () => {
         const userArray = userAnswer as string[] || [];
         const correctArray = q.correctAnswer as string[];
         
-        // Each correct option is worth an equal portion of the question's point
         const pointPerOption = 1 / correctArray.length;
         
-        // Award points for each correct selection
         correctArray.forEach(opt => {
           totalPoints += pointPerOption;
           if (userArray.includes(opt)) earnedPoints += pointPerOption;
         });
         
-        // Penalty for incorrect selections, but don't go below 0 for this question
         let questionPoints = 0;
         userArray.forEach(opt => {
           if (!correctArray.includes(opt)) questionPoints -= pointPerOption;
@@ -123,14 +109,12 @@ const ResultsPage: React.FC = () => {
   
   const referenceScore = calculateReferenceScore();
 
-  // Function to determine score color
   const getScoreColor = () => {
     if (score >= 80) return 'text-green-500';
     if (score >= 60) return 'text-yellow-500';
     return 'text-red-500';
   };
 
-  // Function to get feedback based on score
   const getFeedback = () => {
     if (score >= 90) return "Excellent! You have a great understanding of the material.";
     if (score >= 80) return "Great job! You know the material well.";
@@ -140,7 +124,6 @@ const ResultsPage: React.FC = () => {
     return "You might need to review the material again.";
   };
 
-  // Download the results as a text file
   const downloadResults = () => {
     const report = generateResultReport(name, score, questions, answers);
     const blob = new Blob([report], { type: 'text/plain' });
@@ -159,12 +142,10 @@ const ResultsPage: React.FC = () => {
     });
   };
 
-  // Start a new quiz with the same user
   const startNewQuiz = () => {
     setCurrentStep(1); // Go back to file upload page
   };
 
-  // Toggle question details visibility
   const toggleQuestionDetails = (questionId: number) => {
     if (expandedQuestions.includes(questionId)) {
       setExpandedQuestions(expandedQuestions.filter(id => id !== questionId));
@@ -173,7 +154,6 @@ const ResultsPage: React.FC = () => {
     }
   };
 
-  // Check if an answer is correct
   const isAnswerCorrect = (question: any, index: number) => {
     const userAnswer = answers[question.id];
     const correctAnswer = question.correctAnswer;
@@ -186,15 +166,12 @@ const ResultsPage: React.FC = () => {
       const isCorrectOption = correctAnswers.includes(option);
       const isSelected = userAnswers.includes(option);
       
-      // Correct if: user selected a correct option OR user didn't select an incorrect option
       return (isSelected && isCorrectOption) || (!isSelected && !isCorrectOption);
     }
     
-    // For single-select questions
     return userAnswer === correctAnswer;
   };
 
-  // Check if an option was selected by the user
   const wasOptionSelected = (question: any, option: string) => {
     const userAnswer = answers[question.id];
     
@@ -205,7 +182,6 @@ const ResultsPage: React.FC = () => {
     return userAnswer === option;
   };
 
-  // Check if an option is a correct answer
   const isCorrectOption = (question: any, option: string) => {
     if (question.type === 'multiselect') {
       return Array.isArray(question.correctAnswer) && question.correctAnswer.includes(option);
@@ -359,11 +335,11 @@ const ResultsPage: React.FC = () => {
                             
                             if (question.type === 'multiselect') {
                               if (isSelected && isCorrectOpt) {
-                                bgClass = 'bg-green-100 text-green-800'; // Correct selection
+                                bgClass = 'bg-green-100 text-green-800';
                               } else if (isSelected && !isCorrectOpt) {
-                                bgClass = 'bg-red-100 text-red-800'; // Wrong selection
+                                bgClass = 'bg-red-100 text-red-800';
                               } else if (!isSelected && isCorrectOpt) {
-                                bgClass = 'bg-yellow-100 text-yellow-800'; // Missed correct answer
+                                bgClass = 'bg-yellow-100 text-yellow-800';
                               }
                             } else {
                               if (option === question.correctAnswer) {
