@@ -39,76 +39,11 @@ const ResultsPage: React.FC = () => {
   const totalQuestions = questions.length;
   const incorrectAnswers = totalQuestions - correctAnswers;
   
-  const calculateBLEUScore = () => {
-    let matchCount = 0;
-    let totalCount = 0;
-    
-    questions.forEach(q => {
-      const userAnswer = answers[q.id];
-      
-      if (q.type === 'multiselect') {
-        const userArray = userAnswer as string[] || [];
-        const correctArray = q.correctAnswer as string[];
-        
-        correctArray.forEach(opt => {
-          totalCount++;
-          if (userArray.includes(opt)) matchCount++;
-        });
-        
-        userArray.forEach(opt => {
-          if (!correctArray.includes(opt)) matchCount--;
-        });
-      } else {
-        totalCount++;
-        if (userAnswer === q.correctAnswer) matchCount++;
-      }
-    });
-    
-    return Math.max(0, Math.round((matchCount / totalCount) * 100));
-  };
-  
-  const bleuScore = calculateBLEUScore();
-  
   const chartData = [
     { name: 'Correct', value: correctAnswers, color: '#10b981' },
     { name: 'Incorrect', value: incorrectAnswers, color: '#ef4444' }
   ];
   
-  const calculateReferenceScore = () => {
-    let totalPoints = 0;
-    let earnedPoints = 0;
-    
-    questions.forEach(q => {
-      const userAnswer = answers[q.id];
-      
-      if (q.type === 'multiselect') {
-        const userArray = userAnswer as string[] || [];
-        const correctArray = q.correctAnswer as string[];
-        
-        const pointPerOption = 1 / correctArray.length;
-        
-        correctArray.forEach(opt => {
-          totalPoints += pointPerOption;
-          if (userArray.includes(opt)) earnedPoints += pointPerOption;
-        });
-        
-        let questionPoints = 0;
-        userArray.forEach(opt => {
-          if (!correctArray.includes(opt)) questionPoints -= pointPerOption;
-        });
-        
-        earnedPoints += Math.max(0, questionPoints);
-      } else {
-        totalPoints += 1;
-        if (userAnswer === q.correctAnswer) earnedPoints += 1;
-      }
-    });
-    
-    return Math.round((earnedPoints / totalPoints) * 100);
-  };
-  
-  const referenceScore = calculateReferenceScore();
-
   const getScoreColor = () => {
     if (score >= 80) return 'text-green-500';
     if (score >= 60) return 'text-yellow-500';
@@ -256,27 +191,29 @@ const ResultsPage: React.FC = () => {
                 }}
                 className="h-full"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      innerRadius={40}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {() => (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        innerRadius={40}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
                 <ChartLegend content={<ChartLegendContent />} />
               </ChartContainer>
             </div>
@@ -291,51 +228,34 @@ const ResultsPage: React.FC = () => {
                   }}
                   className="h-full"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={aiAccuracyData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        innerRadius={40}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {aiAccuracyData.map((entry, index) => (
-                          <Cell key={`ai-cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {() => (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={aiAccuracyData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          innerRadius={40}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {aiAccuracyData.map((entry, index) => (
+                            <Cell key={`ai-cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                   <ChartLegend content={<ChartLegendContent />} />
                 </ChartContainer>
               </div>
               <p className="text-xs text-muted-foreground text-center mt-2">
                 This chart represents how accurately the AI generated contextually relevant questions based on the document content.
-              </p>
-            </div>
-
-            <div className="bg-secondary p-4 rounded-lg space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Bilingual Evaluation Score:</span>
-                <span className={`font-bold ${bleuScore >= 70 ? 'text-green-500' : bleuScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
-                  {bleuScore}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Reference Score:</span>
-                <span className={`font-bold ${referenceScore >= 70 ? 'text-green-500' : referenceScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
-                  {referenceScore}%
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Bilingual Evaluation Score measures the precision of your answers compared to the reference answers.
-                Reference Score provides additional context by accounting for partial correctness.
               </p>
             </div>
           </div>
