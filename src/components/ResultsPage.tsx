@@ -6,7 +6,7 @@ import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell } from 'recharts';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -38,7 +38,7 @@ const ResultsPage: React.FC = () => {
   
   const totalQuestions = questions.length;
   const incorrectAnswers = totalQuestions - correctAnswers;
-
+  
   const calculateBLEUScore = () => {
     let matchCount = 0;
     let totalCount = 0;
@@ -244,30 +244,28 @@ const ResultsPage: React.FC = () => {
                 }}
                 className="h-full"
               >
-                {() => (
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      innerRadius={40}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />} 
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                  </PieChart>
-                )}
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    innerRadius={40}
+                    fill="#8884d8"
+                    dataKey="value"
+                    nameKey="name"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />} 
+                  />
+                </PieChart>
+                <ChartLegend content={<ChartLegendContent />} />
               </ChartContainer>
             </div>
 
