@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type QuestionType = 'mcq' | 'truefalse';
@@ -38,7 +37,7 @@ export interface Question {
   type: QuestionType;
 }
 
-const QuizContext = createContext<QuizContextType | undefined>(undefined);
+export const QuizContext = createContext<QuizContextType | undefined>(undefined);
 
 export const QuizProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [name, setName] = useState('');

@@ -18,7 +18,7 @@ const Index: React.FC = () => {
 
 // Wrapper component that decides which step to show
 const QuizApp: React.FC = () => {
-  // Use the React.useContext hook with the QuizContext directly instead of require
+  // Use the exported QuizContext with proper typing
   const { currentStep } = React.useContext(QuizContext);
   
   // Render the appropriate component based on the current step
