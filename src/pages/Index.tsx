@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { QuizProvider } from '@/context/QuizContext';
+import { QuizProvider, useQuiz, QuizContext } from '@/context/QuizContext';
 import WelcomePage from '@/components/WelcomePage';
 import FileUploadPage from '@/components/FileUploadPage';
 import QuizConfigPage from '@/components/QuizConfigPage';
@@ -18,8 +18,8 @@ const Index: React.FC = () => {
 
 // Wrapper component that decides which step to show
 const QuizApp: React.FC = () => {
-  // Import useQuiz inside the component after the provider is available
-  const { currentStep } = React.useContext(require('@/context/QuizContext').QuizContext);
+  // Use the React.useContext hook with the QuizContext directly instead of require
+  const { currentStep } = React.useContext(QuizContext);
   
   // Render the appropriate component based on the current step
   const renderStep = () => {
