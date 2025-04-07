@@ -6,6 +6,8 @@ import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -71,6 +73,18 @@ const ResultsPage: React.FC = () => {
     }
   };
 
+  // Data for AI accuracy pie chart
+  const aiAccuracyData = [
+    { name: 'Correct Questions', value: correctAnswers, color: '#22c55e' },
+    { name: 'Incorrect Questions', value: totalQuestions - correctAnswers, color: '#ef4444' },
+  ];
+  
+  // Chart configuration
+  const chartConfig = {
+    correct: { label: 'Correct Questions', theme: { light: '#22c55e', dark: '#22c55e' } },
+    incorrect: { label: 'Incorrect Questions', theme: { light: '#ef4444', dark: '#ef4444' } },
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <Card className="w-full max-w-md responsive-card">
@@ -112,6 +126,58 @@ const ResultsPage: React.FC = () => {
             
             <p className="text-center text-muted-foreground">
               {getFeedback()}
+            </p>
+          </div>
+          
+          {/* AI Question Accuracy Pie Chart */}
+          <div className="bg-secondary p-4 rounded-lg">
+            <h3 className="font-medium mb-2 text-center">AI Question Generation Accuracy</h3>
+            <div className="h-[200px] w-full">
+              <ChartContainer config={chartConfig}>
+                <PieChart>
+                  <Pie
+                    data={aiAccuracyData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {aiAccuracyData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color} 
+                        stroke="hsl(var(--background))" 
+                        strokeWidth={2}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="rounded-lg border bg-background p-2 shadow-md">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm">{data.name}</span>
+                              <span className="text-xs">
+                                {data.value} questions ({Math.round((data.value / totalQuestions) * 100)}%)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ChartContainer>
+            </div>
+            <p className="text-center text-sm mt-2 text-muted-foreground">
+              The chart shows how accurately the AI generated questions matched your knowledge level.
             </p>
           </div>
           
