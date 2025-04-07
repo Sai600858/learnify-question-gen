@@ -1,25 +1,16 @@
 
 import React from 'react';
-import { QuizProvider, useQuiz, QuizContext } from '@/context/QuizContext';
+import { QuizProvider } from '@/context/QuizContext';
 import WelcomePage from '@/components/WelcomePage';
 import FileUploadPage from '@/components/FileUploadPage';
 import QuizConfigPage from '@/components/QuizConfigPage';
 import QuizPage from '@/components/QuizPage';
 import ResultsPage from '@/components/ResultsPage';
-
-// Main index component with provider that will manage the app's state
-const Index: React.FC = () => {
-  return (
-    <QuizProvider>
-      <QuizApp />
-    </QuizProvider>
-  );
-};
+import { useQuiz } from '@/context/QuizContext';
 
 // Wrapper component that decides which step to show
 const QuizApp: React.FC = () => {
-  // Use the exported QuizContext with proper typing
-  const { currentStep } = React.useContext(QuizContext);
+  const { currentStep } = useQuiz();
   
   // Render the appropriate component based on the current step
   const renderStep = () => {
@@ -53,6 +44,15 @@ const QuizApp: React.FC = () => {
         <p>© 2025 Learnify Quiz Generator. All rights reserved.</p>
       </footer>
     </div>
+  );
+};
+
+// Main index component with provider
+const Index: React.FC = () => {
+  return (
+    <QuizProvider>
+      <QuizApp />
+    </QuizProvider>
   );
 };
 
