@@ -702,7 +702,7 @@ const getOppositeOrUnrelated = (word: string): string => {
     'effective': 'ineffective',
     'advantage': 'disadvantage',
     'benefit': 'drawback',
-    'increase': 'decrease',
+    'decrease': 'increase',
     'enhance': 'diminish',
     'improve': 'worsen',
     'support': 'oppose',
