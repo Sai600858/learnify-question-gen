@@ -20,7 +20,22 @@ const ResultsPage: React.FC = () => {
   const { toast } = useToast();
   const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
 
-  const correctAnswers = questions.filter(q => answers[q.id] === q.correctAnswer).length;
+  // Updated to handle answers that may be string or string[]
+  const correctAnswers = questions.filter(q => {
+    const answer = answers[q.id];
+    const correctAnswer = q.correctAnswer;
+    
+    if (Array.isArray(answer) && Array.isArray(correctAnswer)) {
+      // Compare arrays - check if they have the same elements
+      return answer.length === correctAnswer.length && 
+        answer.every(item => correctAnswer.includes(item));
+    } else if (!Array.isArray(answer) && !Array.isArray(correctAnswer)) {
+      // Compare strings
+      return answer === correctAnswer;
+    }
+    return false;
+  }).length;
+  
   const totalQuestions = questions.length;
   
   // Calculate AI accuracy metrics
@@ -44,9 +59,22 @@ const ResultsPage: React.FC = () => {
     return "You might need to review the material again.";
   };
 
-  // Download the results as a text file
+  // Download the results as a text file - Convert answers to string format for the report generator
   const downloadResults = () => {
-    const report = generateResultReport(name, score, questions, answers);
+    // Convert answers to the format expected by generateResultReport
+    const stringAnswers: Record<number, string> = {};
+    
+    Object.keys(answers).forEach(key => {
+      const numKey = parseInt(key);
+      const answer = answers[numKey];
+      if (Array.isArray(answer)) {
+        stringAnswers[numKey] = answer.join(', ');
+      } else {
+        stringAnswers[numKey] = answer;
+      }
+    });
+    
+    const report = generateResultReport(name, score, questions, stringAnswers);
     const blob = new Blob([report], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     
@@ -252,8 +280,20 @@ const ResultsPage: React.FC = () => {
             <h3 className="font-medium">Question Breakdown</h3>
             <div className="space-y-3">
               {questions.map((question, index) => {
-                const isCorrect = answers[question.id] === question.correctAnswer;
+                // Updated to handle both string and string[] answers
+                const answer = answers[question.id];
+                const correctAnswer = question.correctAnswer;
+                
+                let isCorrect = false;
+                if (Array.isArray(answer) && Array.isArray(correctAnswer)) {
+                  isCorrect = answer.length === correctAnswer.length && 
+                    answer.every(item => correctAnswer.includes(item));
+                } else if (!Array.isArray(answer) && !Array.isArray(correctAnswer)) {
+                  isCorrect = answer === correctAnswer;
+                }
+                
                 const isExpanded = expandedQuestions.includes(question.id);
+                
                 return (
                   <div key={index} className="border border-muted rounded-lg overflow-hidden">
                     <div 
@@ -273,24 +313,44 @@ const ResultsPage: React.FC = () => {
                       <div className="p-3 border-t border-muted bg-background/50 text-sm">
                         <p className="font-medium mb-2">{question.question}</p>
                         <div className="space-y-1">
-                          {question.options.map((option, optIndex) => (
-                            <div 
-                              key={optIndex} 
-                              className={`p-2 rounded ${
-                                option === question.correctAnswer 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : option === answers[question.id] && option !== question.correctAnswer
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-muted/30'
-                              }`}
-                            >
-                              {option}
-                              {option === question.correctAnswer && option !== answers[question.id] && 
-                                <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
-                              }
-                            </div>
-                          ))}
+                          {question.options.map((option, optIndex) => {
+                            // Determine if this option was selected by the user
+                            const isSelected = Array.isArray(answer) 
+                              ? answer.includes(option)
+                              : option === answer;
+                              
+                            // Determine if this option is a correct answer
+                            const isCorrectOption = Array.isArray(correctAnswer)
+                              ? correctAnswer.includes(option)
+                              : option === correctAnswer;
+                            
+                            // Determine CSS class based on correctness and selection
+                            let optionClass = 'p-2 rounded ';
+                            if (isCorrectOption) {
+                              optionClass += 'bg-green-100 text-green-800';
+                            } else if (isSelected && !isCorrectOption) {
+                              optionClass += 'bg-red-100 text-red-800';
+                            } else {
+                              optionClass += 'bg-muted/30';
+                            }
+                            
+                            return (
+                              <div key={optIndex} className={optionClass}>
+                                {option}
+                                {isCorrectOption && !isSelected && 
+                                  <span className="ml-2 font-medium text-green-600">(Correct answer)</span>
+                                }
+                              </div>
+                            );
+                          })}
                         </div>
+                        
+                        {/* Display multi-select guidance if applicable */}
+                        {question.multipleAllowed && (
+                          <p className="mt-2 text-xs italic text-muted-foreground">
+                            This question allowed multiple correct answers.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
