@@ -1,4 +1,3 @@
-
 import { Question, QuestionType } from '../context/QuizContext';
 
 // Enhanced document analysis and LLM-inspired question generation
@@ -290,6 +289,9 @@ const generateComprehensionMCQs = (
     // Choose a concept to focus the question on
     const focusConcept = concepts[Math.floor(Math.random() * concepts.length)];
     
+    // Occasional multiple-answer questions (about 1 in 4 questions)
+    const isMultipleAnswerQuestion = Math.random() < 0.25;
+    
     // Create varied comprehension question types
     const questionTemplates = [
       `According to the document, what is ${focusConcept}?`,
@@ -312,16 +314,79 @@ const generateComprehensionMCQs = (
     const allOptions = [correctAnswer, ...distractors.slice(0, 3)];
     shuffleArray(allOptions);
     
-    comprehensionQuestions.push({
-      id: i + 1,
-      question: questionText,
-      options: allOptions,
-      correctAnswer: correctAnswer,
-      type: 'mcq'
-    });
+    if (isMultipleAnswerQuestion) {
+      // For multiple answer questions, select 2-3 correct answers
+      const correctAnswerCount = Math.floor(Math.random() * 2) + 2; // 2 or 3 correct answers
+      
+      // First correct answer from original logic
+      const firstCorrectAnswer = generateCorrectAnswer(selectedSentence, focusConcept);
+      
+      // Generate additional correct answers
+      const additionalCorrectAnswers = [];
+      for (let j = 0; j < correctAnswerCount - 1; j++) {
+        const additionalAnswer = generateAlternateCorrectAnswer(selectedSentence, focusConcept, firstCorrectAnswer);
+        additionalCorrectAnswers.push(additionalAnswer);
+      }
+      
+      // Combine all correct answers
+      const allCorrectAnswers = [firstCorrectAnswer, ...additionalCorrectAnswers];
+      
+      // Generate enough distractors
+      const distractors = generatePlausibleDistractors(
+        selectedSentence, 
+        firstCorrectAnswer, 
+        sentences, 
+        focusConcept
+      );
+      
+      // Combine and shuffle options (total of 6 options - 2-3 correct, 3-4 incorrect)
+      const allOptions = [...allCorrectAnswers, ...distractors];
+      shuffleArray(allOptions);
+      
+      comprehensionQuestions.push({
+        id: i + 1,
+        question: questionText,
+        options: allOptions.slice(0, 6), // Limit to 6 options
+        correctAnswer: allCorrectAnswers,
+        type: 'mcq',
+        multipleAllowed: true
+      });
+    } else {
+      // Single answer question - use existing logic
+      comprehensionQuestions.push({
+        id: i + 1,
+        question: questionText,
+        options: allOptions,
+        correctAnswer: correctAnswer,
+        type: 'mcq',
+        multipleAllowed: false
+      });
+    }
   }
   
   return comprehensionQuestions;
+};
+
+// New helper function to generate alternate correct answers
+const generateAlternateCorrectAnswer = (sentence: string, concept: string, firstCorrectAnswer: string): string => {
+  // Variations of the first correct answer that are still correct
+  const variations = [
+    `${concept} can be correctly described as ${sentence.split(concept)[1]?.split('.')[0] || 'an important concept in this context'}`,
+    `One accurate description of ${concept} is that it ${sentence.toLowerCase().includes('is') ? sentence.split('is')[1]?.split('.')[0] : 'plays a key role in this domain'}`,
+    `In this context, ${concept} refers to ${sentence.includes('refers to') ? sentence.split('refers to')[1]?.split('.')[0] : 'what was described in the document'}`
+  ];
+  
+  // Filter out any variation that's identical to the first correct answer
+  const differentVariations = variations.filter(v => v !== firstCorrectAnswer && v.length > 20);
+  
+  if (differentVariations.length > 0) {
+    return differentVariations[Math.floor(Math.random() * differentVariations.length)];
+  } else {
+    // Fallback - create a variation by adding a qualifying phrase
+    const qualifiers = ["as described in the document", "as per the material", "according to the content"];
+    const qualifier = qualifiers[Math.floor(Math.random() * qualifiers.length)];
+    return `${firstCorrectAnswer}, ${qualifier}`;
+  }
 };
 
 // Generate application-level MCQ questions focused on applying concepts
@@ -1036,12 +1101,35 @@ export const readFileContent = (file: File): Promise<string> => {
 };
 
 // Helper function to calculate score
-export const calculateScore = (questions: Question[], answers: Record<number, string>): number => {
+export const calculateScore = (questions: Question[], answers: Record<number, string | string[]>): number => {
   let correctCount = 0;
   
   questions.forEach(question => {
-    if (answers[question.id] === question.correctAnswer) {
-      correctCount++;
+    const userAnswer = answers[question.id];
+    
+    if (userAnswer) {
+      if (Array.isArray(question.correctAnswer)) {
+        // For questions with multiple correct answers
+        if (Array.isArray(userAnswer)) {
+          // Check if user answer contains all correct answers and no incorrect ones
+          const correctAnswers = question.correctAnswer;
+          
+          // Check if arrays have the same length and all elements match
+          const isEqual = 
+            userAnswer.length === correctAnswers.length && 
+            correctAnswers.every(answer => userAnswer.includes(answer)) &&
+            userAnswer.every(answer => correctAnswers.includes(answer));
+          
+          if (isEqual) {
+            correctCount++;
+          }
+        }
+      } else {
+        // For questions with a single correct answer
+        if (!Array.isArray(userAnswer) && userAnswer === question.correctAnswer) {
+          correctCount++;
+        }
+      }
     }
   });
   

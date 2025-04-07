@@ -8,6 +8,7 @@ import { calculateScore } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { Timer, Clock } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const QuizPage: React.FC = () => {
   const { 
@@ -21,32 +22,42 @@ const QuizPage: React.FC = () => {
     setTimeRemaining
   } = useQuiz();
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const { toast } = useToast();
   
   const totalQuestions = questions.length;
   const question = questions[currentQuestion];
 
-  // Format time remaining as MM:SS
+  useEffect(() => {
+    if (question) {
+      const currentAnswer = answers[question.id];
+      if (currentAnswer) {
+        if (Array.isArray(currentAnswer)) {
+          setSelectedOptions(currentAnswer);
+        } else {
+          setSelectedOptions([currentAnswer]);
+        }
+      } else {
+        setSelectedOptions([]);
+      }
+    }
+  }, [currentQuestion, question, answers]);
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  // Timer logic
   useEffect(() => {
     const timer = setInterval(() => {
-      // Store current time value to use in the conditional check
       const currentTime = timeRemaining;
       
-      // If time's up, clear interval and move to results
       if (currentTime <= 1) {
         clearInterval(timer);
-        // Time's up - calculate score and move to results
         finishQuiz();
-        setTimeRemaining(0); // Set to exactly zero
+        setTimeRemaining(0);
       } else {
-        // Otherwise decrement the time by 1
         setTimeRemaining(currentTime - 1);
       }
     }, 1000);
@@ -55,7 +66,6 @@ const QuizPage: React.FC = () => {
   }, []);
 
   const finishQuiz = () => {
-    // Calculate final score
     const finalScore = calculateScore(questions, answers);
     setScore(finalScore);
     
@@ -66,11 +76,35 @@ const QuizPage: React.FC = () => {
         : `You've answered all ${totalQuestions} questions.`,
     });
     
-    // Go to results page
     setCurrentStep(4);
   };
 
-  const handleAnswer = (value: string) => {
+  const handleCheckboxChange = (option: string) => {
+    let newSelectedOptions: string[];
+    
+    if (selectedOptions.includes(option)) {
+      newSelectedOptions = selectedOptions.filter(item => item !== option);
+    } else {
+      newSelectedOptions = [...selectedOptions, option];
+    }
+    
+    setSelectedOptions(newSelectedOptions);
+    
+    if (question.multipleAllowed) {
+      setAnswers({
+        ...answers,
+        [question.id]: newSelectedOptions
+      });
+    } else {
+      setAnswers({
+        ...answers,
+        [question.id]: option
+      });
+    }
+  };
+
+  const handleRadioChange = (value: string) => {
+    setSelectedOptions([value]);
     setAnswers({
       ...answers,
       [question.id]: value
@@ -92,12 +126,14 @@ const QuizPage: React.FC = () => {
   };
 
   const isLastQuestion = currentQuestion === totalQuestions - 1;
-  const currentAnswer = answers[question?.id] || '';
+  const currentAnswer = answers[question?.id];
+  const hasAnswer = Array.isArray(currentAnswer) 
+    ? currentAnswer.length > 0 
+    : Boolean(currentAnswer);
 
-  // Time warning colors
   const getTimeColor = () => {
-    if (timeRemaining < 60) return "text-destructive"; // Less than 1 minute
-    if (timeRemaining < 180) return "text-amber-500"; // Less than 3 minutes
+    if (timeRemaining < 60) return "text-destructive";
+    if (timeRemaining < 180) return "text-amber-500";
     return "text-primary";
   };
 
@@ -146,10 +182,33 @@ const QuizPage: React.FC = () => {
             {question.question}
           </CardTitle>
           
-          {question.type === 'mcq' ? (
+          {question.type === 'mcq' && question.multipleAllowed ? (
+            <div className="space-y-3">
+              {question.options.map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`option-${index}`}
+                    checked={selectedOptions.includes(option)}
+                    onCheckedChange={() => handleCheckboxChange(option)}
+                  />
+                  <Label 
+                    htmlFor={`option-${index}`} 
+                    className="flex-1 py-2 cursor-pointer"
+                  >
+                    {option}
+                  </Label>
+                </div>
+              ))}
+              {question.multipleAllowed && (
+                <p className="text-sm text-muted-foreground italic mt-2">
+                  This question allows multiple correct answers. Select all that apply.
+                </p>
+              )}
+            </div>
+          ) : question.type === 'mcq' ? (
             <RadioGroup 
-              value={currentAnswer} 
-              onValueChange={handleAnswer}
+              value={Array.isArray(currentAnswer) ? currentAnswer[0] : (currentAnswer || '')}
+              onValueChange={handleRadioChange}
               className="space-y-3"
             >
               {question.options.map((option, index) => (
@@ -166,8 +225,8 @@ const QuizPage: React.FC = () => {
             </RadioGroup>
           ) : (
             <RadioGroup 
-              value={currentAnswer} 
-              onValueChange={handleAnswer}
+              value={Array.isArray(currentAnswer) ? currentAnswer[0] : (currentAnswer || '')}
+              onValueChange={handleRadioChange}
               className="space-y-3"
             >
               <div className="flex items-center space-x-2">
@@ -193,7 +252,7 @@ const QuizPage: React.FC = () => {
           
           <Button 
             onClick={handleNext}
-            disabled={!currentAnswer}
+            disabled={!hasAnswer}
           >
             {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
           </Button>
