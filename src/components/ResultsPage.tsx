@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -65,36 +65,113 @@ const ResultsPage: React.FC = () => {
     return "You might need to review the material again.";
   };
 
-  // Download the results as a text file - Convert answers to string format for the report generator
+  // Enhanced download function that works on all devices including Android webviews
   const downloadResults = () => {
-    // Convert answers to the format expected by generateResultReport
-    const stringAnswers: Record<number, string> = {};
-    
-    Object.keys(answers).forEach(key => {
-      const numKey = parseInt(key);
-      const answer = answers[numKey];
-      if (Array.isArray(answer)) {
-        stringAnswers[numKey] = answer.join(', ');
+    try {
+      // Convert answers to the format expected by generateResultReport
+      const stringAnswers: Record<number, string> = {};
+      
+      Object.keys(answers).forEach(key => {
+        const numKey = parseInt(key);
+        const answer = answers[numKey];
+        if (Array.isArray(answer)) {
+          stringAnswers[numKey] = answer.join(', ');
+        } else {
+          stringAnswers[numKey] = answer;
+        }
+      });
+      
+      const report = generateResultReport(name, score, questions, stringAnswers);
+      
+      // Create filename
+      const filename = `quiz-results-${name.replace(/\s+/g, '-').toLowerCase()}.txt`;
+      
+      // Method 1: Modern browsers using Blob
+      const blob = new Blob([report], { type: 'text/plain' });
+      
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        // For IE
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+        toast({
+          title: "Results downloaded",
+          description: "Your quiz results have been saved as a text file",
+        });
       } else {
-        stringAnswers[numKey] = answer;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        // These attributes help on both mobile and desktop
+        link.href = url;
+        link.download = filename;
+        link.rel = "noopener";
+        
+        // For Android Webview compatibility
+        link.target = "_blank";
+        
+        // Add to DOM, click, then remove (needed for Firefox)
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        toast({
+          title: "Results downloaded",
+          description: "Your quiz results have been saved as a text file",
+        });
       }
-    });
-    
-    const report = generateResultReport(name, score, questions, stringAnswers);
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `quiz-results-${name.replace(/\s+/g, '-').toLowerCase()}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Results downloaded",
-      description: "Your quiz results have been saved as a text file",
-    });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Download failed",
+        description: "There was an error downloading your results. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Method 2: Alternative download for problematic webviews
+  const copyResultsToClipboard = () => {
+    try {
+      const stringAnswers: Record<number, string> = {};
+      
+      Object.keys(answers).forEach(key => {
+        const numKey = parseInt(key);
+        const answer = answers[numKey];
+        if (Array.isArray(answer)) {
+          stringAnswers[numKey] = answer.join(', ');
+        } else {
+          stringAnswers[numKey] = answer;
+        }
+      });
+      
+      const report = generateResultReport(name, score, questions, stringAnswers);
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(report).then(() => {
+        toast({
+          title: "Results copied to clipboard",
+          description: "Your quiz results have been copied. You can paste them into a document.",
+        });
+      }).catch(err => {
+        console.error("Clipboard error:", err);
+        toast({
+          title: "Copy failed",
+          description: "Could not copy results to clipboard.",
+          variant: "destructive"
+        });
+      });
+    } catch (error) {
+      console.error("Copy error:", error);
+      toast({
+        title: "Copy failed",
+        description: "There was an error copying your results.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Start a new quiz with the same user
@@ -421,12 +498,24 @@ const ResultsPage: React.FC = () => {
         </CardContent>
         
         <CardFooter className="flex flex-col space-y-3">
+          {/* Download button with fallback option */}
           <Button 
             onClick={downloadResults} 
-            className="w-full"
+            className="w-full flex items-center justify-center gap-2"
           >
+            <Download size={16} />
             Download Results
           </Button>
+          
+          {/* Fallback option for Android Webview */}
+          <Button 
+            variant="outline" 
+            onClick={copyResultsToClipboard}
+            className="w-full"
+          >
+            Copy Results to Clipboard
+          </Button>
+          
           <Button 
             variant="outline" 
             onClick={startNewQuiz}
@@ -441,4 +530,3 @@ const ResultsPage: React.FC = () => {
 };
 
 export default ResultsPage;
-
