@@ -6,7 +6,7 @@ import { useQuiz } from '@/context/QuizContext';
 import { generateResultReport } from '@/lib/quizGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -43,6 +43,10 @@ const ResultsPage: React.FC = () => {
   // Calculate AI accuracy metrics
   const relevantQuestionsCount = Math.round(totalQuestions * 0.85); // 85% of questions are considered relevant
   const accurateQuestionsCount = Math.round(totalQuestions * 0.75); // 75% of questions are considered accurate
+  
+  // Calculate percentages for display
+  const relevantPercentage = Math.round((relevantQuestionsCount / totalQuestions) * 100);
+  const accuratePercentage = Math.round((accurateQuestionsCount / totalQuestions) * 100);
   
   // Function to determine score color
   const getScoreColor = () => {
@@ -131,9 +135,34 @@ const ResultsPage: React.FC = () => {
   };
 
   // Adjust chart dimensions based on device size
-  const chartHeight = isMobile ? 200 : 250;
-  const chartOuterRadius = isMobile ? 60 : 80;
-  const chartInnerRadius = isMobile ? 30 : 0;
+  const chartHeight = isMobile ? 260 : 300;
+  const chartOuterRadius = isMobile ? 65 : 85;
+  const chartInnerRadius = isMobile ? 35 : 0;
+
+  // RENDERLESS component to create a custom label for pie charts
+  const renderCustomizedLabel = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, midAngle, percent } = props;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+    
+    // Only show label if the segment is large enough to fit text
+    if (percent < 0.1) return null;
+    
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor="middle" 
+        dominantBaseline="central"
+        fontSize={isMobile ? 12 : 14}
+        fontWeight="bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
@@ -179,17 +208,21 @@ const ResultsPage: React.FC = () => {
             </p>
           </div>
           
-          {/* AI Question Relevance Pie Chart - Improved for mobile */}
+          {/* AI Question Relevance Pie Chart - Improved for all devices */}
           <div className="bg-secondary p-4 rounded-lg">
-            <h3 className="font-medium mb-2 text-center">AI Question Relevance</h3>
-            <div className={`w-full h-[${chartHeight}px]`}>
-              <ChartContainer config={relevanceChartConfig}>
-                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-medium text-center">AI Question Relevance</h3>
+              <span className="text-sm font-medium">{relevantPercentage}% Relevant</span>
+            </div>
+            <div style={{ width: '100%', height: chartHeight }}>
+              <ChartContainer config={relevanceChartConfig} aspectRatio="auto" height={chartHeight}>
+                <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                   <Pie
                     data={aiAccuracyData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
+                    label={renderCustomizedLabel}
                     innerRadius={chartInnerRadius}
                     outerRadius={chartOuterRadius}
                     fill="#8884d8"
@@ -228,6 +261,7 @@ const ResultsPage: React.FC = () => {
                     layout={isMobile ? "horizontal" : "vertical"}
                     verticalAlign={isMobile ? "bottom" : "middle"}
                     align={isMobile ? "center" : "right"}
+                    iconSize={10}
                     wrapperStyle={isMobile ? { paddingTop: '10px' } : { right: 0 }}
                   />
                 </PieChart>
@@ -238,17 +272,21 @@ const ResultsPage: React.FC = () => {
             </p>
           </div>
           
-          {/* AI Question Accuracy Pie Chart - Improved for mobile */}
+          {/* AI Question Accuracy Pie Chart - Improved for all devices */}
           <div className="bg-secondary p-4 rounded-lg mt-4">
-            <h3 className="font-medium mb-2 text-center">AI Question Accuracy</h3>
-            <div className={`w-full h-[${chartHeight}px]`}>
-              <ChartContainer config={accuracyChartConfig}>
-                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-medium text-center">AI Question Accuracy</h3>
+              <span className="text-sm font-medium">{accuratePercentage}% Accurate</span>
+            </div>
+            <div style={{ width: '100%', height: chartHeight }}>
+              <ChartContainer config={accuracyChartConfig} aspectRatio="auto" height={chartHeight}>
+                <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                   <Pie
                     data={aiQualityData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
+                    label={renderCustomizedLabel}
                     innerRadius={chartInnerRadius}
                     outerRadius={chartOuterRadius}
                     fill="#8884d8"
@@ -287,6 +325,7 @@ const ResultsPage: React.FC = () => {
                     layout={isMobile ? "horizontal" : "vertical"}
                     verticalAlign={isMobile ? "bottom" : "middle"}
                     align={isMobile ? "center" : "right"}
+                    iconSize={10}
                     wrapperStyle={isMobile ? { paddingTop: '10px' } : { right: 0 }}
                   />
                 </PieChart>
