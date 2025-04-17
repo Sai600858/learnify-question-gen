@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ResultsPage: React.FC = () => {
   const { 
@@ -19,6 +20,7 @@ const ResultsPage: React.FC = () => {
   } = useQuiz();
   const { toast } = useToast();
   const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
+  const isMobile = useIsMobile();
 
   // Updated to handle answers that may be string or string[]
   const correctAnswers = questions.filter(q => {
@@ -128,9 +130,14 @@ const ResultsPage: React.FC = () => {
     inaccurate: { label: 'Inaccurate Questions', theme: { light: '#ef4444', dark: '#ef4444' } },
   };
 
+  // Adjust chart dimensions based on device size
+  const chartHeight = isMobile ? 200 : 250;
+  const chartOuterRadius = isMobile ? 60 : 80;
+  const chartInnerRadius = isMobile ? 30 : 0;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-      <Card className="w-full max-w-md responsive-card">
+      <Card className="w-full max-w-md md:max-w-lg lg:max-w-xl responsive-card">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold responsive-header">Your Quiz Results</CardTitle>
           <CardDescription>
@@ -172,21 +179,23 @@ const ResultsPage: React.FC = () => {
             </p>
           </div>
           
-          {/* AI Question Relevance Pie Chart */}
+          {/* AI Question Relevance Pie Chart - Improved for mobile */}
           <div className="bg-secondary p-4 rounded-lg">
             <h3 className="font-medium mb-2 text-center">AI Question Relevance</h3>
-            <div className="h-[200px] w-full">
+            <div className={`w-full h-[${chartHeight}px]`}>
               <ChartContainer config={relevanceChartConfig}>
-                <PieChart>
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
                     data={aiAccuracyData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    outerRadius={80}
+                    innerRadius={chartInnerRadius}
+                    outerRadius={chartOuterRadius}
                     fill="#8884d8"
                     dataKey="value"
                     nameKey="name"
+                    paddingAngle={4}
                   >
                     {aiAccuracyData.map((entry, index) => (
                       <Cell 
@@ -215,7 +224,12 @@ const ResultsPage: React.FC = () => {
                       return null;
                     }}
                   />
-                  <Legend />
+                  <Legend 
+                    layout={isMobile ? "horizontal" : "vertical"}
+                    verticalAlign={isMobile ? "bottom" : "middle"}
+                    align={isMobile ? "center" : "right"}
+                    wrapperStyle={isMobile ? { paddingTop: '10px' } : { right: 0 }}
+                  />
                 </PieChart>
               </ChartContainer>
             </div>
@@ -224,21 +238,23 @@ const ResultsPage: React.FC = () => {
             </p>
           </div>
           
-          {/* AI Question Accuracy Pie Chart */}
+          {/* AI Question Accuracy Pie Chart - Improved for mobile */}
           <div className="bg-secondary p-4 rounded-lg mt-4">
             <h3 className="font-medium mb-2 text-center">AI Question Accuracy</h3>
-            <div className="h-[200px] w-full">
+            <div className={`w-full h-[${chartHeight}px]`}>
               <ChartContainer config={accuracyChartConfig}>
-                <PieChart>
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
                     data={aiQualityData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    outerRadius={80}
+                    innerRadius={chartInnerRadius}
+                    outerRadius={chartOuterRadius}
                     fill="#8884d8"
                     dataKey="value"
                     nameKey="name"
+                    paddingAngle={4}
                   >
                     {aiQualityData.map((entry, index) => (
                       <Cell 
@@ -267,7 +283,12 @@ const ResultsPage: React.FC = () => {
                       return null;
                     }}
                   />
-                  <Legend />
+                  <Legend 
+                    layout={isMobile ? "horizontal" : "vertical"}
+                    verticalAlign={isMobile ? "bottom" : "middle"}
+                    align={isMobile ? "center" : "right"}
+                    wrapperStyle={isMobile ? { paddingTop: '10px' } : { right: 0 }}
+                  />
                 </PieChart>
               </ChartContainer>
             </div>
@@ -381,3 +402,4 @@ const ResultsPage: React.FC = () => {
 };
 
 export default ResultsPage;
+
