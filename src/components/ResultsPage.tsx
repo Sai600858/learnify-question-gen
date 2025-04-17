@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,43 +85,33 @@ const ResultsPage: React.FC = () => {
       // Create filename
       const filename = `quiz-results-${name.replace(/\s+/g, '-').toLowerCase()}.txt`;
       
-      // Method 1: Modern browsers using Blob
+      // Modern approach using Blob and URL.createObjectURL
       const blob = new Blob([report], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
       
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-        // For IE
-        window.navigator.msSaveOrOpenBlob(blob, filename);
-        toast({
-          title: "Results downloaded",
-          description: "Your quiz results have been saved as a text file",
-        });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        
-        // These attributes help on both mobile and desktop
-        link.href = url;
-        link.download = filename;
-        link.rel = "noopener";
-        
-        // For Android Webview compatibility
-        link.target = "_blank";
-        
-        // Add to DOM, click, then remove (needed for Firefox)
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 100);
-        
-        toast({
-          title: "Results downloaded",
-          description: "Your quiz results have been saved as a text file",
-        });
-      }
+      // These attributes help on both mobile and desktop
+      link.href = url;
+      link.download = filename;
+      link.rel = "noopener";
+      
+      // For Android Webview compatibility
+      link.target = "_blank";
+      
+      // Add to DOM, click, then remove (needed for Firefox)
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      toast({
+        title: "Results downloaded",
+        description: "Your quiz results have been saved as a text file",
+      });
     } catch (error) {
       console.error("Download error:", error);
       toast({
